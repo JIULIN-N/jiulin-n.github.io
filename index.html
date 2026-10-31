@@ -2657,9 +2657,9 @@ hydrate();
    拉一次最新页面比对构建标记，不一致就提示刷新 / 重建图标 */
 if(!inFile&&location.protocol.indexOf("http")===0){
   fetch(location.href,{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){
-    var m=t.match(/hb:build-([\w-]+)/);
+    var m=t.match(/hb:build-([0-9A-Za-z]+)/);
     if(m&&m[1]!=="20261101a"){
-      toast("网站已更新，当前是旧缓存版本——请刷新页面；桌面图标若仍异常，请删除后重新添加",6000);
+      toast("网站已更新，请刷新页面；桌面图标需关闭重开，若仍异常请删除后重新添加",6000);
     }
   }).catch(function(){});
 }
