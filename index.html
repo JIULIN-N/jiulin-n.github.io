@@ -912,6 +912,9 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
     返回
   </button>
   <div class="vname" id="vName"></div>
+  <button class="vmore" id="btnVOpen" aria-label="在新窗口打开" style="display:none" title="内嵌被拒时点这里">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5h5v5M19 5l-8 8M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4"/></svg>
+  </button>
   <button class="vmore" id="btnVMore" aria-label="更多">
     <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
   </button>
@@ -980,7 +983,9 @@ function showErrBar(msg){
 }
 window.addEventListener("error",function(e){
   var m=e.message||"未知错误";
-  if(m==="Script error."||m==="Script error")m="脚本错误(详情被浏览器隐藏) @行"+e.lineno;
+  // 跨域 iframe / 外部脚本的噪声错误（无详情、无行号），与本站无关，静默忽略
+  if((m==="Script error."||m==="Script error")&&!e.filename&&!e.lineno)return;
+  if(m.indexOf("Script error")===0)return;
   showErrBar(m+" @"+(e.filename?"行"+e.lineno:""));
 });
 window.addEventListener("unhandledrejection",function(e){ showErrBar("Promise: "+(e.reason&&e.reason.message||e.reason)); });
@@ -1520,19 +1525,24 @@ function isWebLink(it){return it.type==="ref"&&/^https?:\/\//i.test(it.path||"")
 function openItem(id){
   var it=DB.items.find(function(x){return x.id===id});
   if(!it){toast("找不到这个工具");return}
-  // 网页链接：先试新标签页；被拦截就直接在本页跳转（多数环境会放行）
+  // 网页链接：在查看器里内嵌打开（保留返回按钮）；被目标站拒绝内嵌时用户可点「新窗口打开」兜底
   if(isWebLink(it)){
-    it.lastOpen=Date.now();save();
-    var w=null;
-    try{w=window.open(it.path,"_blank","noopener")}catch(e){}
-    if(w){ toast("已在新标签页打开"); return }
-    try{ location.href=it.path; return }catch(e){}
-    // 走到这里说明环境完全禁止跳转，给复制兜底
-    if(navigator.clipboard&&navigator.clipboard.writeText){
-      navigator.clipboard.writeText(it.path).then(function(){
-        toast("此环境禁止跳转，链接已复制——去 Safari 粘贴打开",3200);
-      }).catch(function(){ showLinkFallback(it) });
-    }else showLinkFallback(it);
+    $("#btnVOpen").style.display="flex";
+    $("#btnVOpen").onclick=function(){ try{window.open(it.path,"_blank","noopener")}catch(e){} };
+    $("#viewer").classList.add("on");
+    $("#vbar").style.display="flex";
+    $("#vName").textContent=it.name;
+    document.body.style.overflow="hidden";
+    var _l2=document.getElementById("appList");if(_l2)_l2.style.visibility="hidden";
+    currentId=id;
+    it.lastOpen=Date.now();
+    save();
+    try{history.pushState({boxViewer:id},"","#"+"tool="+encodeURIComponent(id))}catch(e){}
+    if(!loadFrame(it)){
+      closeViewer(true);
+      toast("链接无效，已复制到剪贴板",2400);
+      try{navigator.clipboard&&navigator.clipboard.writeText(it.path)}catch(e){}
+    }
     return;
   }
   if(!loadFrame(it)){
@@ -1540,6 +1550,7 @@ function openItem(id){
     else toast("这个条目没有内容，请重新导入");
     return;
   }
+  $("#btnVOpen").style.display="none";
   $("#viewer").classList.add("on");
   $("#vbar").style.display="flex";
   $("#vName").textContent=it.name;
