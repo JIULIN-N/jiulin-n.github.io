@@ -1612,6 +1612,7 @@ function guessDesc(html){
 function readFiles(files){
   var list=Array.prototype.slice.call(files).filter(function(f){return /\.html?$/i.test(f.name)||f.type==="text/html"});
   if(!list.length){toast("请选择 .html 或 .htm 文件");return}
+  toast(list.length>1?("正在解析 "+list.length+" 个文件…"):"正在解析文件，大文件需要几秒…",1800);
   Promise.all(list.map(function(f){
     return new Promise(function(res){
       var r=new FileReader();
@@ -1619,19 +1620,23 @@ function readFiles(files){
         var html=String(r.result||"");
         // 收纳盒备份文件：不是工具，拆出里面内嵌的工具逐个导入
         if(html.indexOf('id="seed-data"')>=0){
+          var shelfBox=true, boxItems=null, parseFail=false;
           try{
             var m2=html.match(/<script id="seed-data" type="application\/json">([\s\S]*?)<\/script>/);
             var seed=JSON.parse(m2[1]);
-            var boxItems=(seed.items||[]).filter(function(x){return x.type==="embed"||x.type==="ref"});
-            if(boxItems.length){
-              // 一个文件对应一个 Promise：打包成数组一次性 resolve（多次 res 只有第一次生效）
-              res({file:f,boxList:boxItems.map(function(x){
-                return {file:{name:f.name},html:x.type==="embed"?(x.html||""):"",
-                  name:x.name||"未命名",desc:x.desc||"",size:x.size||0,boxItem:x};
-              })});
-              return;
-            }
-          }catch(e){}
+            boxItems=(seed.items||[]).filter(function(x){return x.type==="embed"||x.type==="ref"});
+          }catch(e){ parseFail=true }
+          if(!boxItems||!boxItems.length){
+            // 这是收纳盒备份但里面没有工具：不当作工具导入，直接提示
+            res({file:f,html:"",name:f.name,desc:"",size:f.size,shelfEmpty:shelfBox&&true,shelfParseFail:parseFail});
+            return;
+          }
+          // 一个文件对应一个 Promise：打包成数组一次性 resolve（多次 res 只有第一次生效）
+          res({file:f,boxList:boxItems.map(function(x){
+            return {file:{name:f.name},html:x.type==="embed"?(x.html||""):"",
+              name:x.name||"未命名",desc:x.desc||"",size:x.size||0,boxItem:x};
+          })});
+          return;
         }
         res({file:f,html:html,name:guessName(html,f.name),desc:guessDesc(html),size:f.size});
       };
@@ -1640,14 +1645,23 @@ function readFiles(files){
     });
   })).then(function(rows){
     // 展开备份文件拆出的工具列表
-    var all=[];
+    var all=[], emptyShelves=[];
     rows.forEach(function(r){
       if(r.boxList){all.push.apply(all,r.boxList)}
+      else if(r.shelfEmpty){emptyShelves.push(r)}
       else all.push(r);
     });
     pending=all.filter(function(r){return !r.err});
-    var failed=rows.length-pending.filter(function(r){return !r.boxList}).length;
+    var failed=rows.length-pending.filter(function(r){return !r.boxList}).length-emptyShelves.length;
     if(failed)toast(failed+" 个文件读取失败");
+    if(emptyShelves.length){
+      setTimeout(function(){
+        openSheet("这是收纳盒备份，但里面没有工具",
+          '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>这份文件是一个<strong>空的收纳盒模板</strong>'+((emptyShelves[0]||{}).shelfParseFail?'（数据读取失败）':'')+'，里面没有可恢复的工具，所以没有导入。</div></div>'+
+          '<p class="hint">如果想恢复工具，请选择<strong>之前导出的备份文件</strong>（从收纳盒里「导出 / 备份」生成的那份）。空模板不需要导入，直接用现在这份收纳盒就行。</p>',
+          '<button class="btn-primary" style="width:auto;padding:0 16px" data-act="sheet-cancel">知道了</button>');
+      },emptyShelves.length&&pending.length?0:0);
+    }
     if(!pending.length)return;
     showImportSheet();
   });
