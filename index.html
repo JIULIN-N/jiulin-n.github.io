@@ -1668,7 +1668,18 @@ function openSheet(title,bodyHTML,footHTML){
 function closeSheet(){ $("#mask").classList.remove("on"); sheetOn=false; setTimeout(forceRepaint,30); }
 
 /* ---------------------- 导入 ---------------------- */
-var pending=[];
+var pending=[],pendingFolders=[];
+function restorePendingFolders(){
+  if(!pendingFolders||!pendingFolders.length)return;
+  var added=0;
+  pendingFolders.forEach(function(fo){
+    if(fo&&fo.id&&!folders().some(function(x){return x.id===fo.id})){
+      folders().push({id:fo.id,name:fo.name||"未命名"});added++;
+    }
+  });
+  pendingFolders=[];
+  if(added)toast("已恢复 "+added+" 个文件夹",2200);
+}
 function guessName(html,filename){
   var m=html.match(/<title[^>]*>([\s\S]{1,120}?)<\/title>/i);
   if(m&&m[1].trim())return m[1].trim().replace(/\s+/g," ");
@@ -1719,7 +1730,7 @@ function readFiles(files){
             res({file:f,html:"",name:f.name,desc:"",size:f.size,shelfEmpty:true,legacy:legacyShelf,reason:legacyShelf?"这是老版本的收纳盒文件（工具数据存在浏览器缓存里，文件内没有工具）":(parseFail||"备份里没有工具")});
             return;
           }
-          res({file:f,boxList:boxItems});
+          res({file:f,boxList:boxItems,folderList:(seed.settings&&seed.settings.folders)||[]});
           return;
         }
         res({file:f,html:html,name:guessName(html,f.name),desc:guessDesc(html),size:f.size});
@@ -1729,9 +1740,9 @@ function readFiles(files){
     });
   })).then(function(rows){
     // 展开备份文件拆出的工具列表
-    var all=[], emptyShelves=[];
+    var all=[], emptyShelves=[];pendingFolders=[];
     rows.forEach(function(r){
-      if(r.boxList){all.push.apply(all,r.boxList)}
+      if(r.boxList){all.push.apply(all,r.boxList);if(r.folderList)pendingFolders=pendingFolders.concat(r.folderList)}
       else if(r.shelfEmpty){emptyShelves.push(r)}
       else all.push(r);
     });
@@ -1808,6 +1819,7 @@ function doImport(){
     }
     n++;
   });
+  restorePendingFolders();
   save();render();closeSheet();pending=[];
   if(!n){toast("都已存在，未重复添加");return}
   toast("已导入 "+n+" 个工具"+(mode==="embed"?("，共 "+bytes(total)):""));
