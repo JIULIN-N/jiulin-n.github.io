@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!--hb:build-20261101a-->
+<!--hb:build-b1101a-->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12141f" media="(prefers-color-scheme: dark)">
@@ -972,7 +972,7 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
 "use strict";
 
 /* ---------------------- 诊断：版本号 + 错误显示条 ---------------------- */
-var APP_VER="v3";
+var APP_VER="v3",BUILD_ID="b1101a";
 window.__hbver=APP_VER;
 function showErrBar(msg){
   try{
@@ -1510,7 +1510,7 @@ function renderBody(){
   var items=visibleItems(), box=$("#appList");
   var total=DB.items.length;
   $("#stat").innerHTML=total?('共 <b>'+total+'</b> 个工具 · 已渲染 <b>'+items.length+'</b>'):"";
-  $("#modeTag").textContent = (inFile ? "本地文件模式" : "网页模式") + " · " + APP_VER;
+  $("#modeTag").textContent = (inFile ? "本地文件" : "网页模式") + " · " + BUILD_ID;
   if(!total){
     box.innerHTML='<div class="empty">'+
       '<div class="art"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg></div>'+
@@ -2658,8 +2658,14 @@ hydrate();
 if(!inFile&&location.protocol.indexOf("http")===0){
   fetch(location.href,{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){
     var m=t.match(/hb:build-([0-9A-Za-z]+)/);
-    if(m&&m[1]!=="20261101a"){
-      toast("网站已更新，请刷新页面；桌面图标需关闭重开，若仍异常请删除后重新添加",6000);
+    if(m&&m[1]!==BUILD_ID){
+      // 每 24 小时最多提醒一次，避免每次打开都弹
+      var last=0;
+      try{last=Number(localStorage.getItem("hb.updateToast")||0)}catch(e){}
+      if(Date.now()-last>86400000){
+        try{localStorage.setItem("hb.updateToast",String(Date.now()))}catch(e){}
+        toast("网站已更新，请刷新页面；桌面图标需关闭重开，若仍异常请删除后重新添加",6000);
+      }
     }
   }).catch(function(){});
 }
