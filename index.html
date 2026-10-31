@@ -1665,8 +1665,11 @@ function readFiles(files){
       else all.push(r);
     });
     pending=all.filter(function(r){return !r.err});
-    var failed=rows.length-pending.filter(function(r){return !r.boxList}).length-emptyShelves.length;
+    var failed=rows.filter(function(r){return r.err}).length;
     if(failed)toast(failed+" 个文件读取失败");
+    if(!failed&&!emptyShelves.length&&rows.some(function(r){return r.boxList})){
+      toast("已从备份中拆出 "+pending.length+" 个工具",2200);
+    }
     if(emptyShelves.length){
       setTimeout(function(){
         openSheet("这份备份没有可恢复的工具",
@@ -1680,7 +1683,9 @@ function readFiles(files){
   });
 }
 function showImportSheet(){
-  var body='<p class="hint" style="margin-top:0">已读取 '+pending.length+' 个文件。确认后它们会被内嵌进收纳盒，可以再导出一个完整的单文件保存起来。</p><div class="import-list">'+
+  var body='<p class="hint" style="margin-top:0">'+(pending.some(function(r){return r.boxItem})?
+    ('已从备份文件中识别出 <b>'+pending.length+'</b> 个工具，确认后会逐个导入收纳盒。'):
+    ('已读取 '+pending.length+' 个文件。确认后它们会被内嵌进收纳盒，可以再导出一个完整的单文件保存起来。'))+'</p><div class="import-list">'+
     pending.map(function(r,i){
       return '<div class="imp-row"><div class="ico">HTML</div><div class="txt">'+
         '<div class="t1">'+esc(r.name)+'</div><div class="t2">'+esc(r.file.name)+'</div></div>'+
@@ -2433,6 +2438,17 @@ window.addEventListener("scroll",function(){
 load();
 render();
 hydrate();
+/* 白屏自愈：主屏 PWA 长时间后偶发脚本未执行，3 秒后页面仍是空白就自动刷新一次 */
+setTimeout(function(){
+  try{
+    if(!window.__hb)return; // 主脚本没跑起来
+    var list=document.getElementById("appList");
+    if(list&&list.childElementCount===0&&!document.querySelector(".empty")&&!DB.items.length)return;
+    if(list&&list.childElementCount===0&&DB.items.length&&!document.querySelector(".empty")){
+      location.reload();
+    }
+  }catch(e){}
+},3000);
 /* 站点通知：阅读后关闭即不再显示（本地记忆） */
 function siteNotice(){
   var KEY="hb.notice.v1";
@@ -2543,21 +2559,33 @@ document.addEventListener("visibilitychange",function(){
     }
   }catch(e){}
 
-  // service worker：把整页缓存，实现离线（仅 http/https）
+  // service worker：网络优先（避免更新后一直读旧缓存白屏），断网才用缓存（仅 http/https）
   if("serviceWorker" in navigator&&location.protocol!=="file:"){
     var swCode=[
-      "const C='htmlbox-v1';",
+      "const C='htmlbox-v2';",
       "self.addEventListener('install',e=>{self.skipWaiting()});",
-      "self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim())});",
+      "self.addEventListener('activate',e=>{",
+      "  e.waitUntil((async()=>{",
+      "    const keys=await caches.keys();",
+      "    await Promise.all(keys.filter(k=>k!==C).map(k=>caches.delete(k)));",
+      "    await self.clients.claim();",
+      "  })())});",
       "self.addEventListener('fetch',e=>{",
       "  const req=e.request;if(req.method!=='GET')return;",
+      "  if(req.mode==='navigate'){",
+      "    e.respondWith((async()=>{",
+      "      try{const res=await fetch(req);",
+      "        const c=await caches.open(C);c.put(location.pathname,res.clone());return res}",
+      "      catch(err){const c=await caches.open(C);",
+      "        const f=await c.match(location.pathname);",
+      "        if(f)return f;throw err}})());return}",
       "  e.respondWith((async()=>{",
-      "    const c=await caches.open(C);",
-      "    const hit=await c.match(req,{ignoreSearch:true});",
-      "    if(hit)return hit;",
-      "    try{const res=await fetch(req);if(res&&res.ok&&new URL(req.url).origin===location.origin){c.put(req,res.clone())}return res}",
-      "    catch(err){const f=await c.match(location.pathname);if(f)return f;throw err}",
-      "  })());",
+      "    try{const res=await fetch(req);",
+      "      if(res&&res.ok&&new URL(req.url).origin===location.origin){const c=await caches.open(C);c.put(req,res.clone())}",
+      "      return res}",
+      "    catch(err){const c=await caches.open(C);",
+      "      const hit=await c.match(req,{ignoreSearch:true});",
+      "      if(hit)return hit;throw err}})());",
       "});"
     ].join("\n");
     var swUrl=URL.createObjectURL(new Blob([swCode],{type:"text/javascript"}));
