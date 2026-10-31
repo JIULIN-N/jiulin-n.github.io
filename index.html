@@ -942,7 +942,7 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
 <input type="file" id="filePick" accept=".html,.htm,text/html" multiple hidden>
 
 <!-- ====================== 数据（构建时注入） ====================== -->
-<script id="seed-data" type="application/json">{"v": 1, "items": [], "settings": {"theme": "auto"}}</script>
+<script id="seed-data" type="application/json">{"__hbver":2,"items":[]}</script>
 
 <script>
 (function(){
@@ -1542,7 +1542,7 @@ function openItem(id){
       toast("该网站禁止内嵌，已在新窗口打开（以后自动跳转）",2400);
       return;
     }
-    $("#btnVOpen").style.display="flex";
+    $("#btnVOpen").style.display="grid";
     $("#btnVOpen").onclick=function(){
       markSkip(it.path);
       toast("已记住：这个网站以后直接在新窗口打开",2200);
