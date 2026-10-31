@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<!--hb:build-20261101a-->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12141f" media="(prefers-color-scheme: dark)">
@@ -1913,7 +1914,7 @@ function doExport(){
   var html=buildSelfContained();
   if(!html)return;
   // 固定文件名：分享/保存到「文件」时选同一位置，iOS 会提示"替换"，实现覆盖
-  var fn="收纳盒.html";
+  var fn="收纳盒备份.html";
   closeSheet();
   // 优先：已授权过的文件句柄，静默覆盖
   try{
@@ -2106,12 +2107,13 @@ function showHelp(){
     '<li><b>日常打开</b>：点卡片进入工具，左上角「返回」回列表。</li></ul>'+
     '<h2>导出备份（建议定期做）</h2>'+
     '<ol><li>点顶栏的<b>下载图标</b>（问号旁边）→「导出单文件」；</li>'+
-    '<li>在系统分享面板选<b>存储到“文件”</b>，存一份 <span class="kbd">收纳盒.html</span>；</li>'+
+    '<li>在系统分享面板选<b>存储到“文件”</b>，存一份 <span class="kbd">收纳盒备份.html</span>；</li>'+
     '<li>已存在同名文件时 iOS 会提示「<b>替换</b>」，点替换即完成更新备份。</li></ol>'+
     '<p class="hint">日常不导出也不影响使用；但换设备、清数据、删图标之前，先确认备份是最新的。</p>'+
+    '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg><div><b>怎么判断备份是否正常：</b>如果导出的备份文件只有 <b>154KB</b> 左右，说明它是<strong>错误文件</strong>（旧缓存版本导出的，里面没有工具内容）。解决方法：先在浏览器里刷新一次网站，再彻底关闭并重开桌面图标后重新导出；仍不行就删除桌面图标、在浏览器重新「添加到主屏幕」。正常的备份应该有几 MB。</div></div>'+
     '<h2>换设备 / 数据丢失后恢复</h2>'+
     '<ol><li>打开收纳盒（在线链接或新文件）；</li>'+
-    '<li>点「添加」→<b>选择 HTML 文件</b>，选中之前备份的 <span class="kbd">收纳盒.html</span>，里面的工具会被识别恢复；</li>'+
+    '<li>点「添加」→<b>选择 HTML 文件</b>，选中之前备份的 <span class="kbd">收纳盒备份.html</span>，里面的工具会被识别恢复；</li>'+
     '<li>恢复后重新添加到主屏幕即可。</li></ol>'+
     '<h2>管理小技巧</h2>'+
     '<ul><li>卡片右上角 <b>⋯</b>：重命名、置顶、移动到文件夹、删除；</li>'+
@@ -2243,7 +2245,7 @@ document.addEventListener("click",function(e){
     case "confirm-folder-rename": confirmRenameFolder($("#sheetFoot").lastElementChild.dataset.foldRenameId); break;
     case "confirm-sel-del": selDeleteConfirm(); break;
     case "show-add": showAddSheet(); break;
-    case "notice-read": try{localStorage.setItem("hb.notice.v2","read")}catch(e){} closeSheet(); break;
+    case "notice-read": try{localStorage.setItem("hb.notice.v3","read")}catch(e){} closeSheet(); break;
     case "sheet-cancel": closeSheet(); break;
     case "confirm-import": doImport(); break;
     case "save-manifest": saveManifest(); break;
@@ -2651,6 +2653,16 @@ window.addEventListener("scroll",function(){
 load();
 render();
 hydrate();
+/* 版本过期检测：桌面 PWA 可能被旧 Service Worker 卡在老版本（老版导出备份没有工具内容）。
+   拉一次最新页面比对构建标记，不一致就提示刷新 / 重建图标 */
+if(!inFile&&location.protocol.indexOf("http")===0){
+  fetch(location.href,{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){
+    var m=t.match(/hb:build-([\w-]+)/);
+    if(m&&m[1]!=="20261101a"){
+      toast("网站已更新，当前是旧缓存版本——请刷新页面；桌面图标若仍异常，请删除后重新添加",6000);
+    }
+  }).catch(function(){});
+}
 /* 白屏自愈：主屏 PWA 长时间后偶发脚本未执行，3 秒后页面仍是空白就自动刷新一次 */
 setTimeout(function(){
   try{
@@ -2664,11 +2676,12 @@ setTimeout(function(){
 },3000);
 /* 站点通知：阅读后关闭即不再显示（本地记忆） */
 function siteNotice(){
-  var KEY="hb.notice.v2";
+  var KEY="hb.notice.v3";
   try{ if(localStorage.getItem(KEY)==="read")return }catch(e){}
   setTimeout(function(){
     openSheet("网站更新通知",
       '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div><b>网站修复更新。</b>之前通过「文件」方式导出的存档备份，需要重新导出一次（点顶栏下载图标 →「导出 / 备份」），否则旧备份里没有工具内容，无法用于恢复。你当前的工具和数据不受影响。</div></div>'+
+      '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg><div><b>检查你的备份：</b>如果导出的备份文件只有 <b>154KB</b> 左右，说明它是<strong>错误文件</strong>（旧缓存版本导出的，里面没有工具内容）。解决方法：先在浏览器里刷新一次网站，再彻底关闭并重开桌面图标后重新导出；仍不行就删除桌面图标、在浏览器重新「添加到主屏幕」。正常的备份应该有几 MB。</div></div>'+
       '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 5h5v5M19 5l-8 8M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4"/></svg><div><b>网页链接新打开方式：</b>网页现在会在收纳盒里直接打开（带返回按钮）。如果网页显示空白（该网站禁止内嵌），点顶栏 <b>↗</b> 换新窗口打开，并会提示「已记住：这个网站以后直接在新窗口打开」——之后这个网站都会自动直接跳转，不再白屏。</div></div>'+
       '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><div><b>新增整理模式：</b>点文件夹行最前面的 <b>✏️ 小铅笔</b>进入整理。整理状态下：<b>点文件夹名字</b>可以直接重命名；<b>长按拖动</b>可以调整文件夹顺序，也可以拖动下方的工具卡片调整位置；点文件夹上的 <b>×</b> 删除文件夹（里面的工具不会被删）。平时不进整理模式，怎么点都不会误删。</div></div>'+
       '<p class="hint">看完点「知道了」即可，这条通知不会再出现。</p>',
