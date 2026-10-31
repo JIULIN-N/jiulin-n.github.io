@@ -546,24 +546,81 @@ function colorOf(item){return item.color||"#5a5fd8"}
 
 /* ---------------------- 存储 ---------------------- */
 function stripItem(it){
-  // embed 内容不进 localStorage（体积大），只保留元数据
+  // 内容(html)不进 localStorage（体积大），只保留元数据；内容存 IndexedDB
   var o=Object.assign({},it);delete o.html;delete o._url;return o;
 }
+/* ---- IndexedDB 内容仓：容量远大于 localStorage ---- */
+var CDB_NAME="htmlbox-db",CDB_STORE="html";
+function cdb(){
+  return new Promise(function(res,rej){
+    try{
+      var r=indexedDB.open(CDB_NAME,1);
+      r.onupgradeneeded=function(){ try{r.result.createObjectStore(CDB_STORE)}catch(e){} };
+      r.onsuccess=function(){res(r.result)};
+      r.onerror=function(){rej(r.error)};
+    }catch(e){rej(e)}
+  });
+}
+function cdbPutAll(map){
+  if(!Object.keys(map).length)return Promise.resolve(true);
+  return cdb().then(function(db){ return new Promise(function(res,rej){
+    try{
+      var tx=db.transaction(CDB_STORE,"readwrite"),st=tx.objectStore(CDB_STORE);
+      Object.keys(map).forEach(function(k){ st.put(map[k],k) });
+      tx.oncomplete=function(){res(true)}; tx.onerror=function(){rej(tx.error)};
+    }catch(e){rej(e)}
+  })});
+}
+function cdbAll(){ return cdb().then(function(db){ return new Promise(function(res){
+  try{
+    var tx=db.transaction(CDB_STORE,"readonly"),st=tx.objectStore(CDB_STORE),out={};
+    var q=st.openCursor();
+    q.onsuccess=function(){ var c=q.result; if(c){ out[c.key]=c.value; c.continue(); } else res(out); };
+    q.onerror=function(){res({})};
+  }catch(e){res({})}
+})}).catch(function(){return {}}); }
+function cdbDel(ids){
+  if(!ids||!ids.length)return Promise.resolve(false);
+  return cdb().then(function(db){ return new Promise(function(res){
+    try{
+      var tx=db.transaction(CDB_STORE,"readwrite"),st=tx.objectStore(CDB_STORE);
+      ids.forEach(function(k){ try{st.delete(k)}catch(e){} });
+      tx.oncomplete=function(){res(true)}; tx.onerror=function(){res(false)};
+    }catch(e){res(false)}
+  })}).catch(function(){return false});
+}
 function save(){
-  // 优先连内容一起存（重新打开页面工具仍可用）；超限时降级为只存元数据
+  // localStorage 只存元数据（很小，基本不会超配额）；内容异步写入 IndexedDB
+  var okLS=false;
   try{
-    var data={v:1,items:DB.items.map(function(it){
-      var o=Object.assign({},it);delete o._url;return o;
-    }),settings:DB.settings};
+    var data={v:2,items:DB.items.map(stripItem),settings:DB.settings};
     localStorage.setItem(LS_KEY,JSON.stringify(data));
-    DB.settings._fullSaved=true;
-    return;
-  }catch(e){}
-  try{
-    var data2={v:1,items:DB.items.map(stripItem),settings:DB.settings};
-    localStorage.setItem(LS_KEY,JSON.stringify(data2));
-    toast("缓存空间不足，内容未缓存——请导出单文件保存",2600);
-  }catch(e){ console.warn("save failed",e); }
+    okLS=true;
+  }catch(e){ console.warn("save meta failed",e); }
+  var map={};
+  DB.items.forEach(function(it){ if(it.type==="embed"&&it.html)map[it.id]=it.html });
+  cdbPutAll(map).then(function(){
+    // 清理已删除工具的内容
+    var keep={};DB.items.forEach(function(it){keep[it.id]=1});
+    return cdbAll().then(function(all){
+      var dead=Object.keys(all).filter(function(k){return !keep[k]});
+      return cdbDel(dead);
+    });
+  }).catch(function(){
+    if(okLS)toast("内容缓存失败，请导出单文件保存",2600);
+    else toast("存储空间不足，保存失败——请导出单文件保存",3200);
+  });
+}
+function hydrate(){
+  // 启动时把 IndexedDB 里存的内容填回各工具
+  return cdbAll().then(function(all){
+    var changed=false;
+    DB.items.forEach(function(it){
+      if(!it.html&&all[it.id]){ it.html=all[it.id]; changed=true; }
+    });
+    if(changed){ render(); forceRepaint(); }
+    return changed;
+  }).catch(function(){});
 }
 function load(){
   var seeded=null;
@@ -1621,6 +1678,9 @@ window.addEventListener("scroll",function(){
 /* ============ 启动 ============ */
 load();
 render();
+hydrate();
+// 调试句柄：控制台排查用户问题用
+window.__hb={DB:DB,save:save,hydrate:hydrate,cdbAll:cdbAll};
 
 // 自愈：个别内置 WebView（WKWebView）初次加载不绘制列表内容，
 // 强制创建合成层并触发一次重绘
