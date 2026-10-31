@@ -1619,23 +1619,36 @@ function readFiles(files){
       r.onload=function(){
         var html=String(r.result||"");
         // 收纳盒备份文件：不是工具，拆出里面内嵌的工具逐个导入
-        if(html.indexOf('id="seed-data"')>=0){
-          var shelfBox=true, boxItems=null, parseFail=false;
+        // 特征检测放宽：seed-data 标签 / 版本号变量 / 标题，兼容旧版导出格式
+        var isShelf = html.indexOf('id="seed-data"')>=0 || html.indexOf('seed-data')>=0 && html.indexOf('appList')>=0 || html.indexOf("__hbver")>=0;
+        var isShelf = html.indexOf('id="seed-data"')>=0 || html.indexOf('seed-data')>=0 && html.indexOf('appList')>=0 || html.indexOf("__hbver")>=0;
+        var legacyShelf = !isShelf && html.indexOf('id="appList"')>=0 && /收纳盒/.test(html.slice(0,4000));
+        if(legacyShelf){
+          res({file:f,html:"",name:f.name,desc:"",size:f.size,shelfEmpty:true,legacy:true,
+            reason:"这是老版本的收纳盒文件（工具数据存在浏览器缓存里，文件内没有工具）"});
+          return;
+        }
+        if(isShelf){
+          var boxItems=null, parseFail=null;
           try{
-            var m2=html.match(/<script id="seed-data" type="application\/json">([\s\S]*?)<\/script>/);
-            var seed=JSON.parse(m2[1]);
-            boxItems=(seed.items||[]).filter(function(x){return x.type==="embed"||x.type==="ref"});
-          }catch(e){ parseFail=true }
-          if(!boxItems||!boxItems.length){
-            // 这是收纳盒备份但里面没有工具：不当作工具导入，直接提示
-            res({file:f,html:"",name:f.name,desc:"",size:f.size,shelfEmpty:shelfBox&&true,shelfParseFail:parseFail});
+            var m2=html.match(/<script[^>]*id="seed-data"[^>]*>([\s\S]*?)<\/script>/);
+            if(!m2){parseFail="文件里找不到数据段"}
+            else{
+              var seed=JSON.parse(m2[1]);
+              // 全类型拆分：embed 带内容，ref/url 只恢复元数据
+              var raw=(seed&&seed.items)||[];
+              boxItems=raw.map(function(x){
+                return {file:{name:f.name},html:x.type==="embed"?(x.html||""):"",
+                  name:x.name||"未命名",desc:x.desc||"",size:x.size||0,boxItem:x};
+              });
+              if(!raw.length)parseFail="备份里的工具列表是空的";
+            }
+          }catch(e){ parseFail="数据解析失败（"+String(e&&e.message||e).slice(0,40)+"）" }
+          if(parseFail||!boxItems||!boxItems.length){
+            res({file:f,html:"",name:f.name,desc:"",size:f.size,shelfEmpty:true,legacy:legacyShelf,reason:legacyShelf?"这是老版本的收纳盒文件（工具数据存在浏览器缓存里，文件内没有工具）":(parseFail||"备份里没有工具")});
             return;
           }
-          // 一个文件对应一个 Promise：打包成数组一次性 resolve（多次 res 只有第一次生效）
-          res({file:f,boxList:boxItems.map(function(x){
-            return {file:{name:f.name},html:x.type==="embed"?(x.html||""):"",
-              name:x.name||"未命名",desc:x.desc||"",size:x.size||0,boxItem:x};
-          })});
+          res({file:f,boxList:boxItems});
           return;
         }
         res({file:f,html:html,name:guessName(html,f.name),desc:guessDesc(html),size:f.size});
@@ -1656,11 +1669,11 @@ function readFiles(files){
     if(failed)toast(failed+" 个文件读取失败");
     if(emptyShelves.length){
       setTimeout(function(){
-        openSheet("这是收纳盒备份，但里面没有工具",
-          '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>这份文件是一个<strong>空的收纳盒模板</strong>'+((emptyShelves[0]||{}).shelfParseFail?'（数据读取失败）':'')+'，里面没有可恢复的工具，所以没有导入。</div></div>'+
-          '<p class="hint">如果想恢复工具，请选择<strong>之前导出的备份文件</strong>（从收纳盒里「导出 / 备份」生成的那份）。空模板不需要导入，直接用现在这份收纳盒就行。</p>',
+        openSheet("这份备份没有可恢复的工具",
+          '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>检测到这是一个<strong>收纳盒文件</strong>，但读取结果：'+esc((emptyShelves[0]||{}).reason||"备份里没有工具")+'。</div></div>'+
+          '<p class="hint">如果这是之前导出的备份，说明当时导出的版本较老或数据不完整——工具内容可能存在浏览器缓存里而没写进文件。当前设备上的工具不受影响。</p>',
           '<button class="btn-primary" style="width:auto;padding:0 16px" data-act="sheet-cancel">知道了</button>');
-      },emptyShelves.length&&pending.length?0:0);
+      },10);
     }
     if(!pending.length)return;
     showImportSheet();
@@ -2108,6 +2121,7 @@ document.addEventListener("click",function(e){
     case "confirm-folder-del": confirmDelFolder($("#sheetFoot").lastElementChild.dataset.foldDelId); break;
     case "confirm-sel-del": selDeleteConfirm(); break;
     case "show-add": showAddSheet(); break;
+    case "notice-read": try{localStorage.setItem("hb.notice.v1","read")}catch(e){} closeSheet(); break;
     case "sheet-cancel": closeSheet(); break;
     case "confirm-import": doImport(); break;
     case "save-manifest": saveManifest(); break;
@@ -2419,6 +2433,19 @@ window.addEventListener("scroll",function(){
 load();
 render();
 hydrate();
+/* 站点通知：阅读后关闭即不再显示（本地记忆） */
+function siteNotice(){
+  var KEY="hb.notice.v1";
+  try{ if(localStorage.getItem(KEY)==="read")return }catch(e){}
+  setTimeout(function(){
+    openSheet("网站更新通知",
+      '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div><b>网站修复更新。</b>之前通过「文件」方式导出的存档备份，需要重新导出一次（点顶栏下载图标 →「导出 / 备份」），否则旧备份里没有工具内容，无法用于恢复。</div></div>'+
+      '<p class="hint">看完点「知道了」即可，这条通知不会再出现。你当前的工具和数据不受影响。</p>',
+      '<button class="btn-primary" style="width:auto;padding:0 20px" data-act="notice-read">知道了</button>');
+  },600);
+}
+siteNotice();
+
 // 调试句柄：控制台排查用户问题用
 window.__hb={DB:DB,save:save,hydrate:hydrate,cdbAll:cdbAll};
 
