@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>星座进度条生成器</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;background:#101319;color:#E8EAF0;min-height:100vh;padding:18px 14px 60px}
+  h1{font-size:19px;margin-bottom:4px;display:flex;align-items:center;gap:9px}
+  .ttl{background:linear-gradient(180deg,#FFFFFF 0%,#E9F1FF 55%,#AFC6E8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;font-weight:600;letter-spacing:.3px}
+  .brandmark{width:20px;height:38px;flex:none;display:block;filter:drop-shadow(0 0 5px rgba(233,241,255,.35))}
+  .sub{font-size:12.5px;color:#8B92A3;margin-bottom:16px}
+  #credit .no{width:12px;height:12px;vertical-align:-1px;margin-right:2px;fill:none;stroke:#8A93A6;stroke-width:2.4}
+  #credit{margin-top:26px;padding:14px 0 22px;text-align:center;font-size:12px;line-height:1.9;color:#6B7385;border-top:1px solid #1C2230}
+  .panel{background:#181C26;border:1px solid #262C3A;border-radius:14px;padding:14px;margin-bottom:14px}
+  .panel h2{font-size:14px;margin-bottom:10px;color:#AEB6C8}
+  .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  @media(max-width:520px){.grid{grid-template-columns:repeat(4,1fr)}}
+  .cons{border:1px solid #2B3242;background:#0D1017;border-radius:10px;padding:6px 4px;text-align:center;cursor:pointer;font-size:11.5px;color:#AEB6C8;transition:.15s}
+  .cons svg{width:100%;display:block;margin-bottom:3px}
+  .cons.on{border-color:#4A90D9;background:#223047;color:#fff}
+  .row{display:flex;align-items:center;gap:10px;margin:10px 0;font-size:13px}
+  .row label{width:100px;color:#AEB6C8;flex:0 0 auto}
+  .row input[type=range]{flex:1}
+  .row input[type=checkbox]{width:16px;height:16px}
+  .row .val{width:52px;text-align:right;color:#6E7687;font-size:12px}
+  .preview{background:linear-gradient(#05070D,#0B1120);border-radius:12px;padding:18px;overflow:hidden;color:#FFE9A8}
+  .preview svg{width:100%;display:block}
+  .pct{font-size:12px;color:#6E7687;text-align:center;margin-top:8px}
+  #codeBox{border:1px solid #262C3A;border-radius:10px;background:#0D1017;overflow:hidden}
+  #codeBox>summary{list-style:none;cursor:pointer;padding:11px 12px;font-size:12.5px;color:#8B92A3;display:flex;align-items:center;justify-content:space-between;user-select:none}
+  #codeBox>summary::-webkit-details-marker{display:none}
+  #codeBox>summary:hover{color:#C8D2E4}
+  #codeBox[open]>summary{border-bottom:1px solid #1C2230;color:#AEB6C8}
+  #codeBox .chev{transition:transform .18s;font-size:11px;color:#5C6577}
+  #codeBox[open] .chev{transform:rotate(180deg)}
+  #codeBox textarea{border:none;border-radius:0;height:230px}
+  textarea{width:100%;height:170px;background:#0D1017;color:#9FD48A;border:1px solid #262C3A;border-radius:10px;padding:12px;font:11.5px/1.5 ui-monospace,Menlo,monospace;white-space:pre;resize:vertical}
+  .btns{display:flex;gap:10px;margin-top:10px}
+  button{flex:1;padding:11px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}
+  .btns.trio{gap:8px}
+  .btns.trio button{padding:11px 4px;font-size:13px;white-space:nowrap}
+  .copy{background:#4A90D9;color:#fff}
+  .dl{background:#2A3140;color:#C6CCDA}
+  .tip{font-size:12px;color:#8B92A3;line-height:1.7;margin-top:10px}
+  .tabs{display:flex;gap:8px;margin-bottom:10px}
+  .tabs .tab{flex:1;text-align:center;padding:8px 4px;font-size:12.5px;color:#8B92A3;background:#0D1017;border:1px solid #262C3A;border-radius:9px;cursor:pointer;transition:.15s}
+  .tabs .tab.on{background:#223047;border-color:#4A90D9;color:#E8F0FF;font-weight:600}
+  .spkprev{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:6px 0 2px;padding:0 2px}
+  @media(max-width:520px){.spkprev{grid-template-columns:repeat(5,1fr)}}
+  .spkprev div{background:#0D1017;border:1px solid #262C3A;border-radius:8px;padding:4px 0;text-align:center;font-size:10px;color:#8B92A3;cursor:pointer;transition:.15s;line-height:1.15}
+  .spkprev div svg{display:block;margin:0 auto 1px}
+  .spkprev div.on{border-color:#4A90D9;background:#223047;color:#DCE6F5}
+  .reset{width:100%;margin-top:12px;padding:10px;background:#1F2531;color:#AEB6C8;border:1px solid #2B3242;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
+  .reset:hover{background:#293141;color:#fff}
+  #pngBtns button{white-space:nowrap}
+</style>
+</head>
+<body>
+<div id="errbox" style="display:none;background:#7a1f1f;color:#fff;font-size:12px;padding:8px;border-radius:8px;margin-bottom:10px;white-space:pre-wrap;word-break:break-all"></div>
+<script>
+window.onerror=function(msg,src,line,col){var b=document.getElementById('errbox');b.style.display='block';b.textContent='⚠️ 脚本错误: '+msg+' (行 '+line+')';};
+</script>
+<h1><svg class="brandmark" viewBox="0 0 608 1205" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="brandgrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.55" stop-color="#E9F1FF"/><stop offset="1" stop-color="#AFC6E8"/></linearGradient></defs><path d="M570 1114L570 1200L607 1200L607 1114ZM111 0L111 691L31 692L31 727L97 729L0 956L22 965L110 759L111 1204L158 1204L159 779L290 1124L325 1134L429 774L430 1199L477 1199L477 764L563 956L581 950L578 938L485 729L559 727L559 691L478 691L477 657L430 657L429 691L346 691L346 727L403 729L306 1063L180 728L261 727L262 500L453 500L454 547L531 547L531 5L454 5L453 27L254 27L254 63L454 64L454 236L262 237L261 185L244 185L244 690L160 692L158 0ZM261 274L453 273L454 463L262 464Z" fill="url(#brandgrad)" fill-rule="evenodd"/></svg><span class="ttl">星座进度条生成器</span></h1>
+<div class="sub">经典星图册图案 · 星点大小分层 · 背景星野 · 颜色随页眉 currentColor · 逐星点亮发光</div>
+
+<div class="panel">
+  <h2>选择星座</h2>
+  <div class="tabs" id="tabs"></div>
+  <div id="nojs" style="font-size:11px;color:#8a93a6;margin-top:6px">（若此列表为空：当前预览环境未运行网页脚本，请用 Safari/浏览器打开本文件）</div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="panel">
+  <h2>参数</h2>
+  <div class="row"><label>星芒图案</label><input type="range" id="spk" min="0" max="51" step="1" value="1"><span class="val" id="spkv">四芒</span></div>
+  <div style="text-align:right;margin-top:-4px"><button id="sortBtn" style="background:#1F2531;color:#AEB6C8;border:1px solid #2B3242;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer">⇅ 调整顺序</button></div>
+  <div class="spkprev" id="spkprev"></div>
+  <div class="row"><label>宽度</label><input type="range" id="w" min="200" max="600" value="420"><span class="val" id="wv">420</span></div>
+  <div class="row"><label>高度</label><input type="range" id="h" min="60" max="260" value="170"><span class="val" id="hv">170</span></div>
+  <div class="row"><label>星等缩放</label><input type="range" id="mag" min="0.6" max="2" step="0.05" value="1.2"><span class="val" id="magv">1.20</span></div>
+  <div class="row"><label>光晕强度</label><input type="range" id="glow" min="0" max="1" step="0.05" value="0.6"><span class="val" id="glowv">0.60</span></div>
+  <div class="row"><label>连线亮度</label><input type="range" id="line" min="0" max="0.9" step="0.05" value="0.30"><span class="val" id="linev">0.30</span></div>
+  <div class="row"><label>背景星野</label><input type="range" id="bg" min="0" max="90" value="42"><span class="val" id="bgv">42</span></div>
+  <div class="row"><label>星野大小</label><input type="range" id="bgs" min="0.5" max="3" step="0.1" value="1.8"><span class="val" id="bgsv">1.8×</span></div>
+  <div class="row"><label>星野亮度</label><input type="range" id="bgb" min="0.4" max="2.6" step="0.1" value="1"><span class="val" id="bgbv">1.0×</span></div>
+  <div class="row"><label>显示暗星层</label><input type="checkbox" id="dim" checked></div>
+  <div class="row"><label>显示轨迹线</label><input type="checkbox" id="ln" checked></div>
+  <div class="row"><label>等比填满</label><input type="checkbox" id="fill" checked></div>
+  <div class="row"><label>东西镜像</label><input type="checkbox" id="mir" checked></div>
+  <button class="reset" id="resetBtn">恢复默认设置</button>
+</div>
+
+<div class="panel">
+  <h2>预览（拖动模拟章节进度）</h2>
+  <div class="preview" id="prev"></div>
+  <div class="row" style="margin-top:12px"><label style="width:auto">章节进度</label><input type="range" id="pct" min="0" max="100" value="55"><span class="val" id="pctv">55%</span></div>
+  <div class="pct" id="info"></div>
+  <div class="btns" id="pngBtns" style="margin-top:12px">
+    <button class="copy" id="pngBtn">保存预览图 PNG</button>
+    <button class="dl" id="pngBgBtn">透明背景</button>
+  </div>
+  <div class="tip" style="margin-top:8px">导出为 6 倍矢量直出（非位图放大），边缘锐利；「透明背景」切换后再次保存即为透明底图，可叠到任意背景上。</div>
+</div>
+
+<div class="panel">
+  <h2>导出 SVG 代码（粘贴到 Reeden 进度条模板）</h2>
+  <div class="btns trio" style="margin-bottom:10px">
+    <button class="copy" id="copyBtn">复制 SVG 代码</button>
+    <button class="dl" id="dlBtn">下载 .svg</button>
+    <button class="dl" id="dlTxtBtn">下载 txt</button>
+  </div>
+  <details id="codeBox">
+    <summary><span id="codeHint">展开代码预览</span><span class="chev">▾</span></summary>
+    <textarea id="out" readonly spellcheck="false"></textarea>
+  </details>
+  </div>
+  <div class="tip">
+    ① 星座图案按经典星图册样式设计，星点大小按亮度分 3 层；背景星野为固定随机种子，每次生成一致；<br>
+    ② 点亮层带 <b>data-progress="chapter"</b>；点亮顺序沿星座连线轨迹：<b>亮一颗星 → 连一段线 → 再亮下一颗</b>，逐笔绘出星座；<br>
+    ③ 每颗星/每段线的透明度用 {= max(0, round(chapterPct / 100 × 总步数) − 第几步) } 宏控制，步进式逐颗点亮；<br>
+    ④ 发光用 radialGradient 光晕 + 四芒星光斑（currentColor），不依赖 filter；<br>
+    ⑤ 全部颜色引用 currentColor —— 自动跟随页眉颜色。若你的阅读器不支持 max() 宏函数，告诉我，我给你换成兼容写法。
+  </div>
+</div>
+
+<script>/*BLK:CONS*/try{/* ① 星座数据：真实 J2000 亮星 */
+window.CONS = {
+  /* ===== 黄道十二宫（真实 J2000 亮星 + IAU / 大众星图连线）===== */
+  aries:{name:'白羊座',stars:[[1.910,20.808,2.00],[1.892,19.294,3.88],[2.119,23.462,4.52],[2.833,27.260,3.61],[3.048,19.304,4.30]],
+    link:[[0,1],[0,2],[2,3],[3,4]]},
+  taurus:{name:'金牛座',stars:[[4.599,16.509,0.85],[4.477,15.871,3.40],[4.382,17.543,3.76],[4.329,15.628,3.65],[4.011,12.490,3.40],[5.438,28.608,1.65],[5.627,21.143,3.00],[5.533,21.690,4.30],[5.642,22.957,4.30],[3.791,24.113,2.87]],
+    link:[[0,1],[1,2],[2,3],[3,4],[0,4],[3,9],[9,5],[2,6],[6,7],[7,8]]},
+  gemini:{name:'双子座',stars:[[7.577,31.888,1.58],[7.755,28.026,1.14],[7.335,21.982,3.50],[6.732,25.131,3.00],[6.383,22.514,2.98],[6.248,22.507,3.31],[6.629,16.399,1.92]],
+    link:[[0,1],[0,3],[1,2],[3,2],[3,4],[4,5],[2,6]]},
+  cancer:{name:'巨蟹座',stars:[[8.721,21.469,3.53],[8.745,18.154,3.94],[8.975,11.858,4.25],[8.275,9.186,3.53],[8.776,28.760,3.98],[8.511,28.760,4.66],[8.239,27.707,4.26],[8.468,20.342,5.10]],
+    link:[[0,1],[1,2],[1,3],[0,7],[0,4],[4,5],[5,6]]},
+  leo:{name:'狮子座',stars:[[10.139,11.967,1.35],[10.122,16.763,3.48],[10.333,19.842,2.37],[10.278,23.417,3.44],[9.879,26.007,3.88],[9.764,23.774,2.98],[11.235,20.524,2.56],[11.235,15.430,3.32],[11.818,14.572,2.14],[10.533,9.306,3.94]],
+    link:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,1],[1,6],[6,7],[7,8],[0,9],[9,7],[6,2]]},
+  virgo:{name:'处女座',stars:[[13.419,-11.161,0.98],[13.036,10.959,2.83],[12.927,3.398,3.38],[12.694,-1.449,2.74],[12.332,-0.667,3.89],[11.845,1.765,3.59],[13.578,-0.596,3.38],[13.980,-10.264,4.07],[12.162,7.755,3.90]],
+    link:[[0,7],[7,6],[6,2],[2,1],[1,8],[2,3],[3,4],[4,5],[3,6],[0,3]]},
+  libra:{name:'天秤座',stars:[[14.848,-16.042,2.75],[15.283,-9.383,2.61],[15.578,-14.789,3.91],[14.318,-20.160,3.51],[15.322,-4.566,4.10]],
+    link:[[3,0],[0,1],[1,2],[2,0],[1,4],[4,2]]},
+  scorpio:{name:'天蝎座',stars:[[16.090,-19.805,2.62],[16.005,-22.622,2.88],[15.981,-26.114,2.89],[16.353,-25.593,2.89],[16.491,-26.432,1.06],[16.598,-28.216,2.82],[16.836,-34.293,2.29],[16.864,-38.047,3.04],[16.906,-42.361,3.62],[17.202,-43.239,3.32],[17.622,-43.000,1.86],[17.793,-40.127,2.99],[17.708,-39.030,2.39],[17.512,-37.296,2.69],[17.560,-37.104,1.62]],
+    link:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,11],[11,12],[12,13],[13,14]]},
+  sagittarius:{name:'射手座',stars:[[18.050,-30.426,4.50],[18.096,-30.424,2.99],[18.350,-29.828,2.70],[18.403,-34.385,1.85],[18.276,-36.756,3.11],[18.466,-25.421,2.81],[18.761,-26.991,3.17],[18.921,-26.297,2.05],[19.115,-27.671,3.32],[19.044,-29.880,2.60]],
+    link:[[0,1],[1,2],[2,5],[5,6],[6,7],[2,3],[3,4],[3,9],[9,6],[7,8],[8,9]]},
+  capricorn:{name:'摩羯座',stars:[[20.294,-12.545,3.57],[20.350,-14.781,3.09],[20.768,-25.271,3.74],[20.868,-26.919,4.08],[21.783,-16.127,2.87],[21.444,-16.835,4.30],[21.264,-17.233,4.28]],
+    link:[[0,1],[1,2],[2,3],[3,5],[5,6],[6,4],[4,0]]},
+  aquarius:{name:'水瓶座',stars:[[21.526,-5.571,2.90],[22.096,-0.320,2.98],[22.361,-1.387,3.78],[22.480,-0.020,3.66],[22.590,-0.118,4.04],[22.876,-7.580,3.73],[22.910,-15.821,3.27],[21.784,-4.750,4.20]],
+    link:[[0,1],[1,3],[3,4],[3,2],[0,7],[1,5],[5,6]]},
+  pisces:{name:'双鱼座',stars:[[23.656,5.626,4.13],[23.466,6.379,4.27],[23.286,3.282,3.70],[23.437,1.256,4.95],[23.701,1.780,4.49],[23.985,6.864,4.03],[0.811,7.585,4.44],[1.049,7.890,4.27],[1.691,5.486,4.45],[2.034,2.762,3.82],[1.757,9.158,4.26],[1.525,15.349,3.62],[1.194,30.093,4.51]],
+    link:[[0,1],[1,2],[2,3],[3,4],[4,0],[4,5],[5,6],[6,7],[7,8],[8,10],[10,9],[9,11],[11,12]]},
+
+  /* ===== 其他星座（真实 J2000 坐标 + IAU 标准连线）===== */
+  bigdip:{name:'北斗七星',stars:[[11.062,61.751,1.79],[11.031,56.383,2.37],[11.897,53.695,2.44],[12.257,57.033,3.31],[12.900,55.960,1.77],[13.399,54.925,2.04],[13.792,49.313,1.86]],
+    link:[[0,1],[1,2],[2,3],[3,0],[3,4],[4,5],[5,6]]},
+  uma:{name:'大熊座',stars:[[11.062,61.751,1.79],[11.031,56.383,2.37],[11.897,53.695,2.44],[12.257,57.033,3.31],[12.900,55.960,1.77],[13.399,54.925,2.04],[13.792,49.313,1.86],[12.267,69.080,3.00],[14.845,74.156,2.37],[15.734,77.794,4.29],[16.291,75.755,4.01],[14.073,64.376,3.31]],
+    link:[[0,1],[1,2],[2,3],[3,0],[3,4],[4,5],[5,6],[0,7],[7,8],[8,9],[9,10],[10,11],[11,3]]},
+  umi:{name:'小熊座',stars:[[2.530,89.264,1.98],[14.845,74.156,2.08],[15.345,71.834,3.00],[17.537,86.586,4.35],[16.766,82.037,4.23],[15.734,77.794,4.29],[16.291,75.755,5.02]],
+    link:[[1,2],[1,5],[5,4],[4,3],[3,0],[2,6]]},
+  cma:{name:'大犬座',stars:[[6.752,-16.716,1.50],[6.977,-28.972,1.83],[7.140,-26.393,1.50],[6.378,-17.956,1.98],[7.063,-15.633,4.11],[6.339,-30.063,3.02]],
+    link:[[0,3],[0,4],[0,2],[2,1],[1,5]]},
+  cmi:{name:'小犬座',stars:[[7.453,8.289,2.89],[7.655,5.225,0.38],[7.740,28.026,4.32],[7.570,10.180,4.30]],
+    link:[[0,1],[0,3],[3,2],[2,1]]},
+  orion:{name:'猎户座',stars:[[5.919,7.407,0.45],[5.418,6.350,1.64],[5.604,-1.202,1.69],[5.533,-0.299,2.25],[5.679,-1.943,1.74],[5.796,-9.670,2.07],[5.603,-9.670,2.22],[5.242,-8.202,2.06],[5.355,9.934,3.39],[5.132,8.912,3.72],[4.830,6.961,3.70]],
+    link:[[0,1],[0,4],[1,3],[3,2],[2,4],[3,7],[4,6],[6,5],[5,7],[1,8],[8,9],[9,10]]},
+  perseus:{name:'英仙座',stars:[[3.405,49.861,1.79],[3.086,53.506,2.85],[3.011,44.513,3.79],[3.081,38.840,3.32],[3.136,40.956,2.12],[3.715,47.788,2.93],[3.964,40.010,2.88],[3.902,31.884,2.83],[2.688,56.013,3.75]],
+    link:[[0,1],[0,2],[2,3],[3,4],[0,5],[5,6],[6,7],[0,8]]},
+  cassiopeia:{name:'仙后座',stars:[[0.153,59.150,2.24],[0.675,56.537,2.28],[0.945,60.717,2.15],[1.430,60.235,2.68],[1.906,63.670,3.38]],
+    link:[[0,1],[1,2],[2,3],[3,4]]},
+  cygnus:{name:'天鹅座',stars:[[20.690,45.280,1.25],[20.370,40.257,2.23],[19.750,45.131,2.87],[19.512,51.730,3.79],[21.129,38.046,4.02],[20.770,33.970,2.48],[19.512,27.960,3.18],[19.285,58.482,3.77]],
+    link:[[0,1],[1,6],[1,2],[2,3],[1,4],[4,5],[2,7]]},
+  crux:{name:'南十字座',stars:[[12.443,-63.099,1.25],[12.795,-59.689,1.28],[12.519,-57.113,2.79],[12.252,-58.749,3.59]],
+    link:[[0,2],[1,3]]},
+  /* ===== 手绘版：按壁纸布局手摆坐标（xy 模式，0~1 相对坐标，y 向下；星等仅控制点大小） ===== */
+  h_capricorn:{name:'摩羯座',stars:[[0,0,1.8],[0,0,3.2],[0,0,4.0],[0,0,2.2],[0,0,4.0],[0,0,3.2],[0,0,4.0],[0,0,4.0],[0,0,3.2]],
+    xy:[[0.99,0.00],[1.00,0.23],[0.97,0.40],[0.56,0.56],[0.17,0.54],[0.00,0.48],[0.18,0.78],[0.96,0.87],[0.85,1.00]],
+    link:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,8],[8,7],[7,2]]},
+  h_scorpio:{name:'天蝎座',stars:[[0,0,1.8],[0,0,3.2],[0,0,1.6],[0,0,4.0],[0,0,3.4],[0,0,3.2],[0,0,4.0],[0,0,2.0],[0,0,4.0],[0,0,4.0],[0,0,4.2],[0,0,3.2],[0,0,4.0],[0,0,4.0]],
+    xy:[[0.88,0.00],[1.00,0.14],[0.94,0.40],[0.86,0.52],[0.79,0.17],[0.64,0.40],[0.60,0.62],[0.48,0.90],[0.36,0.99],[0.17,1.00],[0.03,0.88],[0.15,0.74],[0.00,0.52],[0.33,0.47]],
+    link:[[0,1],[1,2],[2,3],[0,4],[4,2],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,11],[11,12],[11,13]]},
+  h_cancer:{name:'巨蟹座',stars:[[0,0,2.2],[0,0,3.4],[0,0,4.0],[0,0,2.4],[0,0,3.4]],
+    xy:[[0.43,0.00],[0.54,0.49],[0.17,0.27],[0.00,0.32],[1.00,1.00]],
+    link:[[0,1],[1,2],[2,3],[1,4]]},
+  h_gemini:{name:'双子座',stars:[[0,0,3.8],[0,0,3.2],[0,0,4.0],[0,0,3.2],[0,0,2.6],[0,0,4.0],[0,0,4.0],[0,0,4.0],[0,0,3.8],[0,0,3.2],[0,0,4.0],[0,0,4.0],[0,0,2.4],[0,0,4.0],[0,0,4.0],[0,0,4.0]],
+    xy:[[0.47,0.00],[0.38,0.19],[0.17,0.14],[0.00,0.26],[0.13,0.43],[0.26,0.34],[0.06,0.57],[0.26,0.59],[0.32,0.83],[0.47,0.96],[0.59,1.00],[0.51,0.72],[0.66,0.50],[0.82,0.68],[1.00,0.64],[0.77,0.94]],
+    link:[[0,1],[1,2],[1,5],[5,4],[4,3],[4,6],[4,7],[7,8],[8,9],[8,11],[11,10],[9,10],[1,12],[12,13],[13,14],[12,15]]},
+  h_taurus:{name:'金牛座',stars:[[0,0,4.0],[0,0,3.2],[0,0,4.0],[0,0,2.2],[0,0,2.4],[0,0,4.0],[0,0,2.6],[0,0,4.0],[0,0,3.2],[0,0,2.6],[0,0,4.0]],
+    xy:[[0.13,0.00],[0.30,0.26],[0.48,0.51],[0.48,0.61],[0.00,0.37],[0.30,0.60],[0.69,0.73],[0.66,0.87],[0.78,0.94],[0.94,0.86],[1.00,1.00]],
+    link:[[0,1],[1,2],[2,3],[3,5],[5,4],[3,6],[6,7],[7,8],[6,9],[9,10]]},
+  h_aquarius:{name:'水瓶座',stars:[[0,0,3.2],[0,0,2.6],[0,0,3.2],[0,0,2.6],[0,0,3.8],[0,0,4.0],[0,0,2.6],[0,0,2.6],[0,0,4.0],[0,0,2.8],[0,0,3.2]],
+    xy:[[0.38,0.00],[0.21,0.25],[0.00,0.53],[0.56,0.46],[0.36,0.54],[0.06,0.65],[0.03,0.75],[0.47,1.00],[0.53,0.86],[0.69,0.82],[1.00,0.91]],
+    link:[[0,1],[1,2],[2,4],[4,3],[2,5],[5,6],[6,7],[7,8],[8,9],[9,10]]},
+  h_virgo:{name:'处女座',stars:[[0,0,2.4],[0,0,3.8],[0,0,3.2],[0,0,4.0],[0,0,2.6],[0,0,4.0],[0,0,3.2],[0,0,3.2],[0,0,2.4]],
+    xy:[[0.00,0.67],[0.28,0.77],[0.41,0.91],[0.21,1.00],[0.67,0.53],[0.65,0.35],[0.73,0.00],[0.90,0.41],[1.00,0.24]],
+    link:[[0,1],[1,2],[2,3],[2,4],[4,5],[5,6],[4,7],[7,8]]},
+  h_leo:{name:'狮子座',stars:[[0,0,3.2],[0,0,3.8],[0,0,3.8],[0,0,2.6],[0,0,3.2],[0,0,4.9],[0,0,3.8],[0,0,4.0],[0,0,2.4],[0,0,3.2]],
+    xy:[[0.54,0.00],[0.45,0.07],[0.64,0.04],[0.56,0.24],[0.67,0.29],[0.80,0.55],[1.00,0.64],[0.00,0.98],[0.10,0.87],[0.33,1.00]],
+    link:[[0,1],[0,2],[1,3],[3,4],[4,5],[5,9],[5,6],[9,8],[8,7]]},
+  h_pisces:{name:'双鱼座',stars:[[0,0,3.2],[0,0,4.0],[0,0,4.0],[0,0,4.0],[0,0,4.0],[0,0,3.8],[0,0,2.6],[0,0,4.0],[0,0,4.0],[0,0,3.2],[0,0,4.0],[0,0,3.2],[0,0,4.0],[0,0,4.0]],
+    xy:[[0.93,0.00],[0.86,0.20],[1.00,0.25],[0.96,0.33],[0.84,0.31],[0.70,0.36],[0.59,0.65],[0.51,0.73],[0.45,0.85],[0.32,1.00],[0.20,0.91],[0.08,0.39],[0.00,0.50],[0.08,0.55]],
+    link:[[0,1],[1,2],[2,3],[3,4],[4,1],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,13],[13,12],[12,11],[11,13]]},
+  h_sagittarius:{name:'射手座',stars:[[0,0,2.4],[0,0,2.6],[0,0,3.8],[0,0,2.6],[0,0,3.8],[0,0,3.2],[0,0,3.8],[0,0,3.2],[0,0,2.6],[0,0,3.8],[0,0,4.0],[0,0,4.0],[0,0,3.8],[0,0,2.4]],
+    xy:[[0.47,0.00],[0.55,0.10],[0.68,0.14],[0.59,0.27],[0.43,0.31],[0.49,0.44],[0.69,0.36],[1.00,0.30],[0.94,0.56],[0.80,0.50],[0.79,0.79],[0.00,0.78],[0.12,0.82],[0.15,1.00]],
+    link:[[0,1],[1,2],[2,3],[3,1],[3,4],[4,5],[5,6],[6,3],[6,9],[9,10],[10,8],[8,7],[4,11],[11,12],[12,13]]},
+  h_libra:{name:'天秤座',stars:[[0,0,3.2],[0,0,3.8],[0,0,3.8],[0,0,3.2],[0,0,2.4],[0,0,3.2],[0,0,4.0]],
+    xy:[[0.00,0.81],[0.27,0.68],[0.67,0.08],[0.87,0.00],[1.00,0.44],[0.68,0.92],[0.51,1.00]],
+    link:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]]},
+  h_aries:{name:'白羊座',stars:[[0,0,3.2],[0,0,3.8],[0,0,2.4],[0,0,3.8],[0,0,2.4],[0,0,2.4],[0,0,3.8],[0,0,3.2]],
+    xy:[[0.71,0.09],[0.84,0.00],[1.00,0.05],[0.93,0.19],[1.00,0.29],[0.00,0.47],[0.13,0.80],[0.02,1.00]],
+    link:[[0,1],[1,2],[0,3],[3,4],[0,5],[5,6],[6,7]]},
+  lyra:{name:'天琴座',stars:[[18.615,38.784,0.03],[18.746,37.605,3.24],[18.834,33.363,3.24],[18.982,32.690,4.34],[18.741,39.613,3.44],[18.913,36.899,4.30]],
+    link:[[0,4],[4,1],[1,5],[5,2],[2,3],[3,5],[0,1]]},
+  aquila:{name:'天鹰座',stars:[[19.771,10.613,2.72],[19.846,8.868,0.76],[19.922,6.407,3.71],[19.425,3.115,3.36],[19.090,13.861,2.99],[19.104,-4.917,2.82],[20.188,5.498,3.90]],
+    link:[[0,1],[1,2],[0,4],[1,3],[3,5],[2,6]]},
+  auriga:{name:'御夫座',stars:[[5.278,45.998,0.08],[5.992,44.947,1.90],[5.438,28.608,1.65],[5.032,43.823,2.62],[5.169,41.235,2.99],[4.950,33.166,2.69]],
+    link:[[0,1],[1,2],[2,0],[0,3],[3,4],[4,5],[5,2]]}
+};window.__blk=(window.__blk||0)+1;}catch(e){var b=document.getElementById("errbox");b.style.display="block";b.textContent="\u26a0\ufe0f \u521d\u59cb\u5316\u9519\u8bef [CONS]: "+e.message;}</script>
+<script>/*BLK:GROUPS*/try{/* \u2461 \u5206\u7ec4\u9009\u62e9\u5668 */
+window.GROUPS=[
+  {n:'\u9ec4\u9053\u5341\u4e8c\u5bab',keys:['aries','taurus','gemini','cancer','leo','virgo','libra','scorpio','sagittarius','capricorn','aquarius','pisces']},
+  {n:'\u5176\u4ed6\u661f\u5ea7',keys:['bigdip','uma','umi','orion','cma','cmi','cassiopeia','cygnus','lyra','aquila','auriga','perseus','crux']},
+  {n:'\u624b\u7ed8\u7248',keys:['h_aries','h_taurus','h_gemini','h_cancer','h_leo','h_virgo','h_libra','h_scorpio','h_sagittarius','h_capricorn','h_aquarius','h_pisces']}
+];
+window.cur='leo';window.curGroup=0;
+function mini(k){
+  const c=CONS[k];
+  const W=64,H=48,P=7,PW=W-P*2,PH=H-P*2;
+  let pts=[];
+  if(c.xy){
+    const xs=c.xy.map(function(q){return q[0];}),ys=c.xy.map(function(q){return q[1];});
+    const x0=Math.min.apply(null,xs),y0=Math.min.apply(null,ys);
+    const bw=Math.max.apply(null,xs)-x0||1,bh=Math.max.apply(null,ys)-y0||1;
+    const sc=Math.min(PW/bw,PH/bh)*0.94;
+    pts=c.xy.map(function(q,i){return [P+(PW-bw*sc)/2+(q[0]-x0)*sc, P+(PH-bh*sc)/2+(q[1]-y0)*sc, c.stars[i][2]];});
+  }else{
+    const decs=c.stars.map(function(s){return s[1];});
+    const cosD=Math.cos(((Math.min.apply(null,decs)+Math.max.apply(null,decs))/2)*Math.PI/180);
+    const raMean=Math.atan2(c.stars.reduce(function(a,r){return a+Math.sin(r[0]*Math.PI/12);},0),c.stars.reduce(function(a,r){return a+Math.cos(r[0]*Math.PI/12);},0))/(Math.PI*2)*24;
+    const proj=c.stars.map(function(s){const r=s[0];let d=(r-raMean)%24;if(d>12)d-=24;if(d<-12)d+=24;return [(d)*15*Math.max(cosD,0.05),-s[1]];});
+    const xs=proj.map(function(q){return q[0];}),ys=proj.map(function(q){return q[1];});
+    const x0=Math.min.apply(null,xs),y0=Math.min.apply(null,ys);
+    const bw=Math.max.apply(null,xs)-x0||1,bh=Math.max.apply(null,ys)-y0||1;
+    const sc=Math.min(PW/bw,PH/bh)*0.94;
+    pts=proj.map(function(q,i){return [P+(PW-bw*sc)/2+(q[0]-x0)*sc, P+(PH-bh*sc)/2+(q[1]-y0)*sc, c.stars[i][2]];});
+  }
+  let s='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'">';
+  (c.link||[]).forEach(function(l){
+    s+='<line x1="'+pts[l[0]][0].toFixed(1)+'" y1="'+pts[l[0]][1].toFixed(1)+'" x2="'+pts[l[1]][0].toFixed(1)+'" y2="'+pts[l[1]][1].toFixed(1)+'" stroke="#7d8698" stroke-width="1"/>';
+  });
+  pts.forEach(function(q){
+    const r=Math.max(1.1,(4.6-q[2])*0.42);
+    s+='<circle cx="'+q[0].toFixed(1)+'" cy="'+q[1].toFixed(1)+'" r="'+r.toFixed(1)+'" fill="#DDE5F2"/>';
+  });
+  return s+'</svg>';
+}
+function renderTabs(){
+  const el=document.getElementById('tabs');
+  el.innerHTML=GROUPS.map(function(g,i){
+    return '<div class="tab'+(i===curGroup?' on':'')+'" data-i="'+i+'">'+g.n+' ('+g.keys.length+')</div>';
+  }).join('');
+  Array.prototype.forEach.call(el.children,function(d){
+    d.onclick=function(){curGroup=+d.dataset.i;renderTabs();renderGrid();};
+  });
+}
+function renderGrid(){
+  const el=document.getElementById('grid');
+  el.innerHTML=GROUPS[curGroup].keys.map(function(k){
+    const sel=k===cur;
+    return '<div data-k="'+k+'" style="background:'+(sel?'#223047':'#0D1017')+';border:1px solid '+(sel?'#4A90D9':'#262C3A')+';border-radius:9px;padding:4px 2px 5px;text-align:center;cursor:pointer;color:'+(sel?'#E8F0FF':'#8B92A3')+';font-size:11px;line-height:1.2">'
+      +mini(k)+'<div style="margin-top:1px">'+CONS[k].name+'</div></div>';
+  }).join('');
+  Array.prototype.forEach.call(el.children,function(d){
+    d.onclick=function(){cur=d.dataset.k;renderGrid();build();};
+  });
+}
+;window.__blk=(window.__blk||0)+1;}catch(e){var b=document.getElementById("errbox");b.style.display="block";b.textContent="\u26a0\ufe0f \u521d\u59cb\u5316\u9519\u8bef [GROUPS]: "+e.message;}</script>
+<script>/*BLK:SPIKES*/try{
+window.$=function(id){return document.getElementById(id);};
+window.SPIKES=[
+  {n:'无芒',f:(x,y,r)=>''},
+  {n:'四芒',f:(x,y,r)=>{
+    /* 4 根尖刺：外层顶点长、内层谷点短，交替构成星形 */
+    let d='';
+    const OUT=r*3.0, IN=r*0.62;
+    for(let k=0;k<8;k++){
+      const ang=k*Math.PI/4-Math.PI/2;
+      const rad=(k%2===0)?OUT:IN;
+      const px=(x+Math.cos(ang)*rad).toFixed(2),py=(y+Math.sin(ang)*rad).toFixed(2);
+      d+=(k?'L':'M')+px+' '+py+' ';
+    }
+    return d+'Z';
+  }},
+  {n:'八芒',f:(x,y,r)=>{
+    /* 8 根尖刺：外层顶点长、内层谷点短，交替构成星形 */
+    let d='';
+    const OUT=r*3.0, IN=r*0.62;
+    for(let k=0;k<16;k++){
+      const ang=k*Math.PI/8-Math.PI/2;
+      const rad=(k%2===0)?OUT:IN;
+      const px=(x+Math.cos(ang)*rad).toFixed(2),py=(y+Math.sin(ang)*rad).toFixed(2);
+      d+=(k?'L':'M')+px+' '+py+' ';
+    }
+    return d+'Z';
+  }},
+  {n:'十字',f:(x,y,r)=>{
+    const L=r*3.6,w=r*0.26;
+    return 'M'+(x-w).toFixed(2)+' '+(y-L).toFixed(2)+' L'+(x+w).toFixed(2)+' '+(y-L).toFixed(2)
+      +' L'+(x+w).toFixed(2)+' '+(y-w).toFixed(2)+' L'+(x+L).toFixed(2)+' '+(y-w).toFixed(2)
+      +' L'+(x+L).toFixed(2)+' '+(y+w).toFixed(2)+' L'+(x+w).toFixed(2)+' '+(y+w).toFixed(2)
+      +' L'+(x+w).toFixed(2)+' '+(y+L).toFixed(2)+' L'+(x-w).toFixed(2)+' '+(y+L).toFixed(2)
+      +' L'+(x-w).toFixed(2)+' '+(y+w).toFixed(2)+' L'+(x-L).toFixed(2)+' '+(y+w).toFixed(2)
+      +' L'+(x-L).toFixed(2)+' '+(y-w).toFixed(2)+' L'+(x-w).toFixed(2)+' '+(y-w).toFixed(2)+' Z';
+  }},
+  {n:'火花',f:(x,y,r)=>{
+    /* 三长三短的细针芒（经典镜头星芒） */
+    let d='';
+    for(let k=0;k<6;k++){
+      const ang=k*Math.PI/3-Math.PI/2, L=r*(k%2===0?3.8:2.0), b=r*0.16;
+      const cx1=x+Math.cos(ang-Math.PI/2)*b, cy1=y+Math.sin(ang-Math.PI/2)*b;
+      const cx2=x+Math.cos(ang+Math.PI/2)*b, cy2=y+Math.sin(ang+Math.PI/2)*b;
+      const tx=x+Math.cos(ang)*L, ty=y+Math.sin(ang)*L;
+      d+='M'+cx1.toFixed(2)+' '+cy1.toFixed(2)+' L'+tx.toFixed(2)+' '+ty.toFixed(2)
+        +' L'+cx2.toFixed(2)+' '+cy2.toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'环芒',f:(x,y,r)=>{
+    const R=r*2.6;
+    return 'M'+(x-R).toFixed(2)+' '+y+' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 1 0 '+(x+R).toFixed(2)+' '+y
+      +' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 1 0 '+(x-R).toFixed(2)+' '+y+' Z'
+      +' M'+(x-r*0.75).toFixed(2)+' '+y+' A'+(r*0.75).toFixed(2)+' '+(r*0.75).toFixed(2)+' 0 1 1 '+(x+r*0.75).toFixed(2)+' '+y
+      +' A'+(r*0.75).toFixed(2)+' '+(r*0.75).toFixed(2)+' 0 1 1 '+(x-r*0.75).toFixed(2)+' '+y+' Z';
+  }},
+  {n:'五芒',f:(x,y,r)=>{
+    /* 经典五角星 */
+    let d='';
+    for(let k=0;k<10;k++){
+      const ang=k*Math.PI/5-Math.PI/2, rad=(k%2===0)?r*2.8:r*1.15;
+      d+=(k?'L':'M')+(x+Math.cos(ang)*rad).toFixed(2)+' '+(y+Math.sin(ang)*rad).toFixed(2)+' ';
+    }
+    return d+'Z';
+  }},
+  {n:'花芒',f:(x,y,r)=>{
+    /* 细长四芒 + 斜向短芒（花形） */
+    let d='';
+    for(let k=0;k<8;k++){
+      const ang=k*Math.PI/4-Math.PI/2, L=r*(k%2===0?3.6:1.6), b=r*0.19;
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      d+='M'+(x+Math.cos(a1)*b).toFixed(2)+' '+(y+Math.sin(a1)*b).toFixed(2)
+        +' L'+(x+Math.cos(ang)*L).toFixed(2)+' '+(y+Math.sin(ang)*L).toFixed(2)
+        +' L'+(x+Math.cos(a2)*b).toFixed(2)+' '+(y+Math.sin(a2)*b).toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'双环',f:(x,y,r)=>{
+    /* 两层同心光环（细） */
+    const R1=r*3.0,R2=r*1.7,th=r*0.16;
+    const ring=(R,ri)=>'M'+(x-R).toFixed(2)+' '+y+' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 1 0 '+(x+R).toFixed(2)+' '+y
+      +' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 1 0 '+(x-R).toFixed(2)+' '+y+' Z '
+      +'M'+(x-ri).toFixed(2)+' '+y+' A'+ri.toFixed(2)+' '+ri.toFixed(2)+' 0 1 1 '+(x+ri).toFixed(2)+' '+y
+      +' A'+ri.toFixed(2)+' '+ri.toFixed(2)+' 0 1 1 '+(x-ri).toFixed(2)+' '+y+' Z ';
+    return ring(R1,R1-th)+ring(R2,R2-th);
+  }},
+  {n:'尖钻',f:(x,y,r)=>{
+    /* 竖向拉长的锐角菱形（受光线） */
+    const L=r*4.0,W2=r*0.55;
+    return 'M'+x+' '+(y-L).toFixed(2)+' L'+(x+W2).toFixed(2)+' '+y+' L'+x+' '+(y+L).toFixed(2)
+      +' L'+(x-W2).toFixed(2)+' '+y+' Z';
+  }},
+  {n:'星尘',f:(x,y,r)=>{
+    /* 中心小四芒 + 四个斜向游离小点 */
+    const q=r*1.9,L=r*2.2;
+    let d='M'+x+' '+(y-L).toFixed(2)+' Q'+x+' '+y+' '+(x+q).toFixed(2)+' '+y+' Q'+x+' '+y+' '+x+' '+(y+L).toFixed(2)
+      +' Q'+x+' '+y+' '+(x-q).toFixed(2)+' '+y+' Q'+x+' '+y+' '+x+' '+(y-L).toFixed(2)+' Z ';
+    for(let k=0;k<4;k++){
+      const ang=k*Math.PI/2+Math.PI/4, R=r*3.2, s=r*0.42;
+      const cx=x+Math.cos(ang)*R, cy=y+Math.sin(ang)*R;
+      d+='M'+(cx-s).toFixed(2)+' '+cy.toFixed(2)+' A'+s.toFixed(2)+' '+s.toFixed(2)+' 0 1 0 '+(cx+s).toFixed(2)+' '+cy
+        +' A'+s.toFixed(2)+' '+s.toFixed(2)+' 0 1 0 '+(cx-s).toFixed(2)+' '+cy+' Z ';
+    }
+    return d;
+  }},
+  {n:'旋风',f:(x,y,r)=>{
+    /* 四臂弧形旋涡 */
+    let d='';
+    for(let k=0;k<4;k++){
+      const a0=k*Math.PI/2, R0=r*0.7, R1=r*3.2;
+      const x0=x+Math.cos(a0)*R0, y0=y+Math.sin(a0)*R0;
+      const x1=x+Math.cos(a0+0.9)*R1, y1=y+Math.sin(a0+0.9)*R1;
+      const c1x=x+Math.cos(a0+0.75)*R1*0.75, c1y=y+Math.sin(a0+0.75)*R1*0.75;
+      const c2x=x+Math.cos(a0+0.2)*R1*0.55, c2y=y+Math.sin(a0+0.2)*R1*0.55;
+      d+='M'+x0.toFixed(2)+' '+y0.toFixed(2)+' Q'+c1x.toFixed(2)+' '+c1y.toFixed(2)+' '+x1.toFixed(2)+' '+y1.toFixed(2)
+        +' Q'+c2x.toFixed(2)+' '+c2y.toFixed(2)+' '+x0.toFixed(2)+' '+y0.toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'扫把',f:(x,y,r)=>{
+    /* 一颗亮核 + 5 条渐短的斜向尾迹（流星） */
+    let d='';
+    for(let k=0;k<5;k++){
+      const ang=Math.PI*0.78+k*0.075, L=r*(2.2+k*0.85), b=r*(0.30-k*0.045);
+      const a1=ang+Math.PI/2, a2=ang-Math.PI/2;
+      const ox=Math.cos(ang+Math.PI)*r*0.5, oy=Math.sin(ang+Math.PI)*r*0.5;
+      const px=x+ox, py=y+oy;
+      const tx=px+Math.cos(ang)*L, ty=py+Math.sin(ang)*L;
+      d+='M'+(px+Math.cos(a1)*b).toFixed(2)+' '+(py+Math.sin(a1)*b).toFixed(2)
+        +' L'+tx.toFixed(2)+' '+ty.toFixed(2)
+        +' L'+(px+Math.cos(a2)*b).toFixed(2)+' '+(py+Math.sin(a2)*b).toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'棱晶',f:(x,y,r)=>{
+    /* 六边菱形晶体：外轮廓 + 内切三角刻面 */
+    const R=r*2.6;
+    let d='';
+    for(let k=0;k<6;k++){
+      const ang=k*Math.PI/3-Math.PI/2;
+      d+=(k?'L':'M')+(x+Math.cos(ang)*R).toFixed(2)+' '+(y+Math.sin(ang)*R*1.18).toFixed(2)+' ';
+    }
+    d+='Z ';
+    for(let k=0;k<3;k++){
+      const ang=k*2*Math.PI/3-Math.PI/2;
+      d+=(k?'L':'M')+(x+Math.cos(ang)*R*0.55).toFixed(2)+' '+(y+Math.sin(ang)*R*0.65).toFixed(2)+' ';
+    }
+    return d+'Z';
+  }},
+  {n:'日冕',f:(x,y,r)=>{
+    /* 实心核 + 一圈长短交替的火焰射线 */
+    const core=r*0.95;
+    let d='M'+(x-core).toFixed(2)+' '+y+' A'+core.toFixed(2)+' '+core.toFixed(2)+' 0 1 0 '+(x+core).toFixed(2)+' '+y
+      +' A'+core.toFixed(2)+' '+core.toFixed(2)+' 0 1 0 '+(x-core).toFixed(2)+' '+y+' Z ';
+    for(let k=0;k<12;k++){
+      const ang=k*Math.PI/6-Math.PI/2, L=r*(k%2===0?3.4:2.1), w=r*0.22;
+      const a1=ang-Math.PI/2,a2=ang+Math.PI/2;
+      d+='M'+(x+Math.cos(a1)*w).toFixed(2)+' '+(y+Math.sin(a1)*w).toFixed(2)
+        +' L'+(x+Math.cos(ang)*L).toFixed(2)+' '+(y+Math.sin(ang)*L).toFixed(2)
+        +' L'+(x+Math.cos(a2)*w).toFixed(2)+' '+(y+Math.sin(a2)*w).toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'雪晶',f:(x,y,r)=>{
+    /* 六向主干 + 每支两侧对称小枝（雪花） */
+    const R=r*3.1, b1=R*0.42, b2=R*0.72, w=r*0.13;
+    let d='';
+    for(let k=0;k<6;k++){
+      const ang=k*Math.PI/3-Math.PI/2;
+      const ex=x+Math.cos(ang)*R, ey=y+Math.sin(ang)*R;
+      d+='M'+x+' '+y+' L'+ex.toFixed(2)+' '+ey.toFixed(2)+' ';
+      for(const t of [b1,b2]){
+        for(const s of [-1,1]){
+          const sa=ang+s*Math.PI/3.6;
+          const sx=x+Math.cos(ang)*t, sy=y+Math.sin(ang)*t;
+          d+='M'+sx.toFixed(2)+' '+sy.toFixed(2)+' L'+(sx+Math.cos(sa)*R*0.30).toFixed(2)+' '+(sy+Math.sin(sa)*R*0.30).toFixed(2)+' ';
+        }
+      }
+    }
+    return d;
+  }},
+  {n:'棱芒',f:(x,y,r)=>{
+    /* 4 长 + 4 短的镜面棱光，尖端带内凹（钻石切割感） */
+    let d='';
+    for(let k=0;k<8;k++){
+      const ang=k*Math.PI/4-Math.PI/2, L=r*(k%2===0?4.0:2.3), b=r*0.42;
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      const bx=Math.cos(ang)*b, by=Math.sin(ang)*b;
+      d+='M'+(x+Math.cos(a1)*b).toFixed(2)+' '+(y+Math.sin(a1)*b).toFixed(2)
+        +' Q'+(x+bx*0.55).toFixed(2)+' '+(y+by*0.55).toFixed(2)+' '+(x+Math.cos(ang)*L).toFixed(2)+' '+(y+Math.sin(ang)*L).toFixed(2)
+        +' Q'+(x+bx*0.55).toFixed(2)+' '+(y+by*0.55).toFixed(2)+' '+(x+Math.cos(a2)*b).toFixed(2)+' '+(y+Math.sin(a2)*b).toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'轨道',f:(x,y,r)=>{
+    /* 中心点 + 一个倾斜椭圆轨道环 */
+    const R=r*3.1, th=r*0.20, c=Math.cos(-0.62), s=Math.sin(-0.62);
+    const pt=(px,py)=>[(x+px*c-py*s).toFixed(2),(y+px*s+py*c).toFixed(2)];
+    const o1=pt(-R,0), o2=pt(R,0);
+    const i1=pt(-(R-th),th*0.9), i2=pt(R-th,th*0.9);
+    const k=r*0.8;
+    return 'M'+o1[0]+' '+o1[1]+' A'+R.toFixed(2)+' '+(R*0.34).toFixed(2)+' -35 1 0 '+o2[0]+' '+o2[1]
+      +' A'+R.toFixed(2)+' '+(R*0.34).toFixed(2)+' -35 1 0 '+o1[0]+' '+o1[1]+' Z '
+      +'M'+i1[0]+' '+i1[1]+' A'+(R-th).toFixed(2)+' '+(R*0.26).toFixed(2)+' -35 1 1 '+i2[0]+' '+i2[1]
+      +' A'+(R-th).toFixed(2)+' '+(R*0.26).toFixed(2)+' -35 1 1 '+i1[0]+' '+i1[1]+' Z '
+      +'M'+(x-k).toFixed(2)+' '+y+' A'+k.toFixed(2)+' '+k.toFixed(2)+' 0 1 0 '+(x+k).toFixed(2)+' '+y
+      +' A'+k.toFixed(2)+' '+k.toFixed(2)+' 0 1 0 '+(x-k).toFixed(2)+' '+y+' Z';
+  }},
+  {n:'七芒',f:(x,y,r)=>{
+    /* 七角星：外尖内谷交替 */
+    let d='';
+    for(let k=0;k<14;k++){
+      const ang=k*Math.PI/7-Math.PI/2, rad=(k%2===0)?r*2.9:r*1.15;
+      d+=(k?'L':'M')+(x+Math.cos(ang)*rad).toFixed(2)+' '+(y+Math.sin(ang)*rad).toFixed(2)+' ';
+    }
+    return d+'Z';
+  }},
+  {n:'螺旋',f:(x,y,r)=>{
+    /* 阿基米德螺线，用短线段渐进 */
+    let d='', first=true;
+    const turns=2.4, steps=64;
+    for(let k=0;k<=steps;k++){
+      const t=k/steps, ang=t*turns*Math.PI*2, rad=r*0.25+t*r*2.9;
+      const px=x+Math.cos(ang)*rad, py=y+Math.sin(ang)*rad;
+      d+=(first?'M':'L')+px.toFixed(2)+' '+py.toFixed(2)+' ';
+      first=false;
+    }
+    return d;
+  }},
+  {n:'三叶',f:(x,y,r)=>{
+    /* 三片水滴形花瓣，旋转 120° */
+    let d='';
+    for(let k=0;k<3;k++){
+      const a=k*2*Math.PI/3-Math.PI/2, L=r*3.0, w=r*0.95;
+      const tipx=x+Math.cos(a)*L, tipy=y+Math.sin(a)*L;
+      const c1x=x+Math.cos(a-0.9)*w, c1y=y+Math.sin(a-0.9)*w;
+      const c2x=x+Math.cos(a+0.9)*w, c2y=y+Math.sin(a+0.9)*w;
+      const m1x=x+Math.cos(a-0.42)*L*0.62, m1y=y+Math.sin(a-0.42)*L*0.62;
+      const m2x=x+Math.cos(a+0.42)*L*0.62, m2y=y+Math.sin(a+0.42)*L*0.62;
+      d+='M'+x+' '+y+' Q'+c1x.toFixed(2)+' '+c1y.toFixed(2)+' '+m1x.toFixed(2)+' '+m1y.toFixed(2)
+        +' Q'+tipx.toFixed(2)+' '+tipy.toFixed(2)+' '+tipx.toFixed(2)+' '+tipy.toFixed(2)
+        +' Q'+m2x.toFixed(2)+' '+m2y.toFixed(2)+' '+c2x.toFixed(2)+' '+c2y.toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'北极',f:(x,y,r)=>{
+    /* 极星罗盘：四长芒 + 四斜短芒 + 中心菱形 */
+    let d='';
+    for(let k=0;k<8;k++){
+      const ang=k*Math.PI/4-Math.PI/2, L=r*(k%2===0?4.2:1.9), w=r*(k%2===0?0.55:0.38);
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      d+='M'+(x+Math.cos(a1)*w).toFixed(2)+' '+(y+Math.sin(a1)*w).toFixed(2)
+        +' L'+(x+Math.cos(ang)*L).toFixed(2)+' '+(y+Math.sin(ang)*L).toFixed(2)
+        +' L'+(x+Math.cos(a2)*w).toFixed(2)+' '+(y+Math.sin(a2)*w).toFixed(2)+' Z ';
+    }
+    const c=r*0.62;
+    return d+'M'+x+' '+(y-c).toFixed(2)+' L'+(x+c).toFixed(2)+' '+y+' L'+x+' '+(y+c).toFixed(2)+' L'+(x-c).toFixed(2)+' '+y+' Z';
+  }},
+  {n:'光晕',f:(x,y,r)=>{
+    /* 三层同心圆（细环渐扩），中心留空 */
+    let d='';
+    for(const k of [1.0,1.85,2.85]){
+      const R=r*k, th=Math.max(r*0.16,r*0.5/k);
+      d+='M'+(x-R).toFixed(2)+' '+y+' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 1 0 '+(x+R).toFixed(2)+' '+y
+        +' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 1 0 '+(x-R).toFixed(2)+' '+y+' Z '
+        +'M'+(x-R+th).toFixed(2)+' '+y+' A'+(R-th).toFixed(2)+' '+(R-th).toFixed(2)+' 0 1 1 '+(x+R-th).toFixed(2)+' '+y
+        +' A'+(R-th).toFixed(2)+' '+(R-th).toFixed(2)+' 0 1 1 '+(x-R+th).toFixed(2)+' '+y+' Z ';
+    }
+    return d;
+  }},
+  {n:'菱芒',f:(x,y,r)=>{
+    /* 8 个细长菱形花瓣放射（钻石花） */
+    let d='';
+    for(let k=0;k<8;k++){
+      const ang=k*Math.PI/4-Math.PI/2, L=r*(k%2===0?3.6:2.2), w=r*0.42;
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      const c1x=x+Math.cos(ang)*L*0.42, c1y=y+Math.sin(ang)*L*0.42;
+      d+='M'+x+' '+y
+        +' L'+(c1x+Math.cos(a1)*w).toFixed(2)+' '+(c1y+Math.sin(a1)*w).toFixed(2)
+        +' L'+(x+Math.cos(ang)*L).toFixed(2)+' '+(y+Math.sin(ang)*L).toFixed(2)
+        +' L'+(c1x+Math.cos(a2)*w).toFixed(2)+' '+(c1y+Math.sin(a2)*w).toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'星环',f:(x,y,r)=>{
+    /* 四芒 + 一个细环穿过（经典星环） */
+    const R=r*2.4, th=Math.max(r*0.14,r*0.30);
+    let d='';
+    for(let k=0;k<4;k++){
+      const ang=k*Math.PI/2-Math.PI/2, L=r*3.8, w=r*0.34;
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      d+='M'+(x+Math.cos(a1)*w).toFixed(2)+' '+(y+Math.sin(a1)*w).toFixed(2)
+        +' L'+(x+Math.cos(ang)*L).toFixed(2)+' '+(y+Math.sin(ang)*L).toFixed(2)
+        +' L'+(x+Math.cos(a2)*w).toFixed(2)+' '+(y+Math.sin(a2)*w).toFixed(2)+' Z ';
+    }
+    return d+'M'+(x-R).toFixed(2)+' '+y+' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 1 0 '+(x+R).toFixed(2)+' '+y
+      +' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 1 0 '+(x-R).toFixed(2)+' '+y+' Z '
+      +'M'+(x-R+th).toFixed(2)+' '+y+' A'+(R-th).toFixed(2)+' '+(R-th).toFixed(2)+' 0 1 1 '+(x+R-th).toFixed(2)+' '+y
+      +' A'+(R-th).toFixed(2)+' '+(R-th).toFixed(2)+' 0 1 1 '+(x-R+th).toFixed(2)+' '+y+' Z';
+  }},
+  {n:'折角',f:(x,y,r)=>{
+    /* 4 条折线芒（V 形分叉，像风吹的星） */
+    let d='';
+    for(let k=0;k<4;k++){
+      const ang=k*Math.PI/2-Math.PI/2, L=r*3.6, sp=0.34;
+      const ex=x+Math.cos(ang)*L, ey=y+Math.sin(ang)*L;
+      for(const s of [-1,1]){
+        const a2=ang+s*sp;
+        const mx=x+Math.cos(ang)*L*0.55, my=y+Math.sin(ang)*L*0.55;
+        d+='M'+x+' '+y+' L'+(mx+Math.cos(a2)*r*0.5).toFixed(2)+' '+(my+Math.sin(a2)*r*0.5).toFixed(2)
+          +' L'+(ex+Math.cos(a2)*r*0.7).toFixed(2)+' '+(ey+Math.sin(a2)*r*0.7).toFixed(2)+' ';
+      }
+    }
+    return d;
+  }},
+  {n:'碎钻',f:(x,y,r)=>{
+    /* 中心大方钻 + 外围 6 颗小碎钻 */
+    const sq=(cx,cy,s)=>'M'+cx+' '+(cy-s).toFixed(2)+' L'+(cx+s).toFixed(2)+' '+cy+' L'+cx+' '+(cy+s).toFixed(2)+' L'+(cx-s).toFixed(2)+' '+cy+' Z ';
+    let d=sq(x,y,r*1.15);
+    for(let k=0;k<6;k++){
+      const ang=k*Math.PI/3-Math.PI/2, R=r*2.7, s=r*0.42;
+      d+=sq(+(x+Math.cos(ang)*R).toFixed(2), +(y+Math.sin(ang)*R).toFixed(2), s);
+    }
+    return d;
+  }},
+  {n:'光芒',f:(x,y,r)=>{
+    /* 8 条锐利长芒，无内圈（纯放射） */
+    let d='';
+    for(let k=0;k<16;k++){
+      const ang=k*Math.PI/8-Math.PI/2, L=r*(k%2===0?4.4:1.5), w=r*(k%2===0?0.30:0.20);
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      d+='M'+(x+Math.cos(a1)*w).toFixed(2)+' '+(y+Math.sin(a1)*w).toFixed(2)
+        +' L'+(x+Math.cos(ang)*L).toFixed(2)+' '+(y+Math.sin(ang)*L).toFixed(2)
+        +' L'+(x+Math.cos(a2)*w).toFixed(2)+' '+(y+Math.sin(a2)*w).toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'双芒',f:(x,y,r)=>{
+    /* 两个四芒叠成 45° 错位（米字变体） */
+    let d='';
+    for(let g=0;g<2;g++){
+      const off=g*Math.PI/4;
+      for(let k=0;k<4;k++){
+        const ang=k*Math.PI/2-Math.PI/2+off, L=r*(g===0?4.2:2.4), w=r*(g===0?0.36:0.26);
+        const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+        d+='M'+(x+Math.cos(a1)*w).toFixed(2)+' '+(y+Math.sin(a1)*w).toFixed(2)
+          +' L'+(x+Math.cos(ang)*L).toFixed(2)+' '+(y+Math.sin(ang)*L).toFixed(2)
+          +' L'+(x+Math.cos(a2)*w).toFixed(2)+' '+(y+Math.sin(a2)*w).toFixed(2)+' Z ';
+      }
+    }
+    return d;
+  }},
+  {n:'细棱',f:(x,y,r)=>{
+    /* 极细的 6 条针芒（远星感），长度不一 */
+    let d='';
+    for(let k=0;k<6;k++){
+      const ang=k*Math.PI/3-Math.PI/2, L=r*(k%2===0?4.6:3.0), w=r*0.13;
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      d+='M'+(x+Math.cos(a1)*w).toFixed(2)+' '+(y+Math.sin(a1)*w).toFixed(2)
+        +' L'+(x+Math.cos(ang)*L).toFixed(2)+' '+(y+Math.sin(ang)*L).toFixed(2)
+        +' L'+(x+Math.cos(a2)*w).toFixed(2)+' '+(y+Math.sin(a2)*w).toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'缎带',f:(x,y,r)=>{
+    /* 四段弧形缎带环（断开的圆） */
+    let d='';
+    const R1=r*3.0, R2=r*2.1;
+    for(let k=0;k<4;k++){
+      const s=k*Math.PI/2+0.18, e=s+Math.PI/2-0.36;
+      const ox1=[x+Math.cos(s)*R1,y+Math.sin(s)*R1], ox2=[x+Math.cos(e)*R1,y+Math.sin(e)*R1];
+      const ix2=[x+Math.cos(e)*R2,y+Math.sin(e)*R2], ix1=[x+Math.cos(s)*R2,y+Math.sin(s)*R2];
+      d+='M'+ox1[0].toFixed(2)+' '+ox1[1].toFixed(2)
+        +' A'+R1.toFixed(2)+' '+R1.toFixed(2)+' 0 0 1 '+ox2[0].toFixed(2)+' '+ox2[1].toFixed(2)
+        +' L'+ix2[0].toFixed(2)+' '+ix2[1].toFixed(2)
+        +' A'+R2.toFixed(2)+' '+R2.toFixed(2)+' 0 0 0 '+ix1[0].toFixed(2)+' '+ix1[1].toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'斜针',f:(x,y,r)=>{
+    /* 只有 3 条长针，45° 斜向排布（复古手绘风） */
+    let d='';
+    for(let k=0;k<3;k++){
+      const ang=k*2*Math.PI/3+0.55, L=r*(k===0?4.6:3.4), w=r*0.20;
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      d+='M'+(x+Math.cos(a1)*w).toFixed(2)+' '+(y+Math.sin(a1)*w).toFixed(2)
+        +' L'+(x+Math.cos(ang)*L).toFixed(2)+' '+(y+Math.sin(ang)*L).toFixed(2)
+        +' L'+(x+Math.cos(a2)*w).toFixed(2)+' '+(y+Math.sin(a2)*w).toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'四棱',f:(x,y,r)=>{
+    /* 8 条等长针 + 中心方孔（罗盘玫瑰） */
+    let d='';
+    for(let k=0;k<8;k++){
+      const ang=k*Math.PI/4-Math.PI/2, L=r*(k%2===0?3.9:3.0), w=r*0.18;
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      d+='M'+(x+Math.cos(a1)*w).toFixed(2)+' '+(y+Math.sin(a1)*w).toFixed(2)
+        +' L'+(x+Math.cos(ang)*L).toFixed(2)+' '+(y+Math.sin(ang)*L).toFixed(2)
+        +' L'+(x+Math.cos(a2)*w).toFixed(2)+' '+(y+Math.sin(a2)*w).toFixed(2)+' Z ';
+    }
+    const s=r*0.75;
+    return d+'M'+(x-s).toFixed(2)+' '+(y-s).toFixed(2)+' L'+(x+s).toFixed(2)+' '+(y-s).toFixed(2)
+      +' L'+(x+s).toFixed(2)+' '+(y+s).toFixed(2)+' L'+(x-s).toFixed(2)+' '+(y+s).toFixed(2)+' Z';
+  }},
+  {n:'双叶',f:(x,y,r)=>{
+    /* 上下两片柳叶，交叉成 X */
+    let d='';
+    for(const rot of [0,Math.PI/2]){
+      const L=r*3.6, w=r*0.85;
+      const c=Math.cos(rot), s=Math.sin(rot);
+      const P=(px,py)=>[(x+px*c-py*s).toFixed(2),(y+px*s+py*c).toFixed(2)];
+      const t1=P(0,-L), t2=P(0,L), c1=P(w,-L*0.35), c2=P(w,L*0.35), c3=P(-w,L*0.35), c4=P(-w,-L*0.35);
+      d+='M'+t1[0]+' '+t1[1]+' Q'+c1[0]+' '+c1[1]+' '+t2[0]+' '+t2[1]
+        +' Q'+c2[0]+' '+c2[1]+' '+t2[0]+' '+t2[1]+' Q'+c3[0]+' '+c3[1]+' '+t1[0]+' '+t1[1]
+        +' Q'+c4[0]+' '+c4[1]+' '+t1[0]+' '+t1[1]+' Z ';
+    }
+    return d;
+  }},
+  {n:'信号',f:(x,y,r)=>{
+    /* 中心点 + 右侧三条渐大的弧（信号塔） */
+    const k=r*0.75;
+    let d='M'+(x-k).toFixed(2)+' '+y+' A'+k.toFixed(2)+' '+k.toFixed(2)+' 0 1 0 '+(x+k).toFixed(2)+' '+y
+      +' A'+k.toFixed(2)+' '+k.toFixed(2)+' 0 1 0 '+(x-k).toFixed(2)+' '+y+' Z ';
+    for(let i=1;i<=3;i++){
+      const R=r*(1.3+i*0.85), th=r*0.16, a0=-0.62, a1=0.62;
+      const p0=[x+Math.cos(a0)*R,y+Math.sin(a0)*R], p1=[x+Math.cos(a1)*R,y+Math.sin(a1)*R];
+      const q1=[x+Math.cos(a1)*(R-th),y+Math.sin(a1)*(R-th)], q0=[x+Math.cos(a0)*(R-th),y+Math.sin(a0)*(R-th)];
+      d+='M'+p0[0].toFixed(2)+' '+p0[1].toFixed(2)+' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 0 1 '+p1[0].toFixed(2)+' '+p1[1].toFixed(2)
+        +' L'+q1[0].toFixed(2)+' '+q1[1].toFixed(2)+' A'+(R-th).toFixed(2)+' '+(R-th).toFixed(2)+' 0 0 0 '+q0[0].toFixed(2)+' '+q0[1].toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'星团',f:(x,y,r)=>{
+    /* 8 颗大小不一散点（疏散星团） */
+    let d='';
+    const pts=[[0.9,0.3,0.55],[1.6,-0.9,0.42],[2.2,0.8,0.34],[-1.1,1.0,0.48],[-1.9,-0.5,0.36],[-0.4,-2.0,0.40],[1.3,1.9,0.30],[-2.3,1.8,0.26]];
+    for(const [dx,dy,ss] of pts){
+      const cx=x+dx*r, cy=y+dy*r, s=ss*r;
+      d+='M'+(cx-s).toFixed(2)+' '+cy+' A'+s.toFixed(2)+' '+s.toFixed(2)+' 0 1 0 '+(cx+s).toFixed(2)+' '+cy
+        +' A'+s.toFixed(2)+' '+s.toFixed(2)+' 0 1 0 '+(cx-s).toFixed(2)+' '+cy+' Z ';
+    }
+    return d;
+  }},
+  {n:'拱形',f:(x,y,r)=>{
+    /* 上方半环拱 + 下方两条竖腿（拱门） */
+    const R=r*2.6, th=r*0.30, leg=r*2.4;
+    const c=Math.cos, s=Math.sin;
+    const o0=[x-R,y], o1=[x+R,y];
+    const i0=[x-R+th,y], i1=[x+R-th,y];
+    return 'M'+o0[0].toFixed(2)+' '+o0[1].toFixed(2)
+      +' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 0 1 '+o1[0].toFixed(2)+' '+o1[1].toFixed(2)
+      +' L'+o1[0].toFixed(2)+' '+(y+leg).toFixed(2)+' L'+i1[0].toFixed(2)+' '+(y+leg).toFixed(2)
+      +' L'+i1[0].toFixed(2)+' '+i1[1].toFixed(2)
+      +' A'+(R-th).toFixed(2)+' '+(R-th).toFixed(2)+' 0 0 0 '+i0[0].toFixed(2)+' '+i0[1].toFixed(2)
+      +' L'+i0[0].toFixed(2)+' '+(y+leg).toFixed(2)+' L'+o0[0].toFixed(2)+' '+(y+leg).toFixed(2)+' Z';
+  }},
+  {n:'十字星',f:(x,y,r)=>{
+    /* 四臂纺锤状（每臂两头尖，经典十字星） */
+    let d='';
+    for(let k=0;k<4;k++){
+      const ang=k*Math.PI/2-Math.PI/2, L=r*(k%2===0?4.2:3.2), w=r*0.42;
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      const mid=[x+Math.cos(ang)*L*0.45, y+Math.sin(ang)*L*0.45];
+      const tip=[x+Math.cos(ang)*L, y+Math.sin(ang)*L];
+      d+='M'+x+' '+y
+        +' Q'+(mid[0]+Math.cos(a1)*w).toFixed(2)+' '+(mid[1]+Math.sin(a1)*w).toFixed(2)+' '+tip[0].toFixed(2)+' '+tip[1].toFixed(2)
+        +' Q'+(mid[0]+Math.cos(a2)*w).toFixed(2)+' '+(mid[1]+Math.sin(a2)*w).toFixed(2)+' '+x+' '+y+' Z ';
+    }
+    return d;
+  }},
+  {n:'镜像',f:(x,y,r)=>{
+    /* 4 条实心长芒 + 中间横贯细线（指南针） */
+    let d='';
+    for(let k=0;k<4;k++){
+      const ang=k*Math.PI/2-Math.PI/2, L=r*(k%2===0?4.3:2.8), w=r*(k%2===0?0.62:0.44);
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      d+='M'+(x+Math.cos(a1)*w).toFixed(2)+' '+(y+Math.sin(a1)*w).toFixed(2)
+        +' L'+(x+Math.cos(ang)*L).toFixed(2)+' '+(y+Math.sin(ang)*L).toFixed(2)
+        +' L'+(x+Math.cos(a2)*w).toFixed(2)+' '+(y+Math.sin(a2)*w).toFixed(2)+' Z ';
+    }
+    const R=r*3.6, th=r*0.12;
+    return d+'M'+(x-R).toFixed(2)+' '+y+' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 1 0 '+(x+R).toFixed(2)+' '+y
+      +' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 1 0 '+(x-R).toFixed(2)+' '+y+' Z '
+      +'M'+(x-R+th).toFixed(2)+' '+y+' A'+(R-th).toFixed(2)+' '+(R-th).toFixed(2)+' 0 1 1 '+(x+R-th).toFixed(2)+' '+y
+      +' A'+(R-th).toFixed(2)+' '+(R-th).toFixed(2)+' 0 1 1 '+(x-R+th).toFixed(2)+' '+y+' Z';
+  }},
+  {n:'梯花',f:(x,y,r)=>{
+    /* 6 个梯形花瓣放射（小彩旗感） */
+    let d='';
+    for(let k=0;k<6;k++){
+      const ang=k*Math.PI/3-Math.PI/2, R1=r*0.7, R2=r*3.0, w1=r*0.45, w2=r*0.85;
+      const p0=[x+Math.cos(ang)*R1, y+Math.sin(ang)*R1];
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      d+='M'+p0[0].toFixed(2)+' '+p0[1].toFixed(2)
+        +' L'+(x+Math.cos(ang)*R2+Math.cos(a1)*w2).toFixed(2)+' '+(y+Math.sin(ang)*R2+Math.sin(a1)*w2).toFixed(2)
+        +' L'+(x+Math.cos(ang)*R2+Math.cos(a2)*w2).toFixed(2)+' '+(y+Math.sin(ang)*R2+Math.sin(a2)*w2).toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'晶簇',f:(x,y,r)=>{
+    /* 三根不同长度的晶体棒斜向交叠 */
+    let d='';
+    for(let k=0;k<3;k++){
+      const ang=k*Math.PI/3+0.4, L=r*(3.8-k*0.5), w=r*0.42;
+      const c=Math.cos(ang), s=Math.sin(ang);
+      const pc=Math.cos(ang+Math.PI/2), ps=Math.sin(ang+Math.PI/2);
+      const A=[x-c*L, y-s*L], B=[x+c*L, y+s*L];
+      const o1=[pc*w, ps*w];
+      d+='M'+(A[0]+o1[0]).toFixed(2)+' '+(A[1]+o1[1]).toFixed(2)
+        +' L'+(B[0]+o1[0]).toFixed(2)+' '+(B[1]+o1[1]).toFixed(2)
+        +' L'+(B[0]-o1[0]).toFixed(2)+' '+(B[1]-o1[1]).toFixed(2)
+        +' L'+(A[0]-o1[0]).toFixed(2)+' '+(A[1]-o1[1]).toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'回纹',f:(x,y,r)=>{
+    /* 方形回字纹（三层嵌套方框，各开口） */
+    let d='';
+    for(let g=0;g<3;g++){
+      const S=r*(2.9-g*0.85), t=r*0.22;
+      const x0=x-S, y0=y-S;
+      d+='M'+x0.toFixed(2)+' '+y0.toFixed(2)+' L'+(x+S).toFixed(2)+' '+y0.toFixed(2)
+        +' L'+(x+S).toFixed(2)+' '+(y+S).toFixed(2)+' L'+(x0+t).toFixed(2)+' '+(y+S).toFixed(2)+' ';
+    }
+    return d;
+  }},
+  {n:'轮辐',f:(x,y,r)=>{
+    /* 车轮：外圈 + 6 根辐条（线条版） */
+    const R=r*3.0, th=r*0.16;
+    let d='M'+(x-R).toFixed(2)+' '+y+' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 1 0 '+(x+R).toFixed(2)+' '+y
+      +' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 1 0 '+(x-R).toFixed(2)+' '+y+' Z '
+      +'M'+(x-R+th).toFixed(2)+' '+y+' A'+(R-th).toFixed(2)+' '+(R-th).toFixed(2)+' 0 1 1 '+(x+R-th).toFixed(2)+' '+y
+      +' A'+(R-th).toFixed(2)+' '+(R-th).toFixed(2)+' 0 1 1 '+(x-R+th).toFixed(2)+' '+y+' Z ';
+    const c=r*0.5;
+    d+='M'+(x-c).toFixed(2)+' '+y+' A'+c.toFixed(2)+' '+c.toFixed(2)+' 0 1 0 '+(x+c).toFixed(2)+' '+y
+      +' A'+c.toFixed(2)+' '+c.toFixed(2)+' 0 1 0 '+(x-c).toFixed(2)+' '+y+' Z ';
+    for(let k=0;k<6;k++){
+      const ang=k*Math.PI/3, w=r*0.13;
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      d+='M'+(x+Math.cos(a1)*w).toFixed(2)+' '+(y+Math.sin(a1)*w).toFixed(2)
+        +' L'+(x+Math.cos(ang)*(R-th*2)).toFixed(2)+' '+(y+Math.sin(ang)*(R-th*2)).toFixed(2)
+        +' L'+(x+Math.cos(a2)*w).toFixed(2)+' '+(y+Math.sin(a2)*w).toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'星火',f:(x,y,r)=>{
+    /* 不规则火花：5 根长短随机的针 */
+    let d='';
+    const lens=[4.4,2.1,3.2,1.7,2.8];
+    for(let k=0;k<5;k++){
+      const ang=k*2*Math.PI/5-0.4, L=r*lens[k], w=r*0.20;
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      d+='M'+(x+Math.cos(a1)*w).toFixed(2)+' '+(y+Math.sin(a1)*w).toFixed(2)
+        +' L'+(x+Math.cos(ang)*L).toFixed(2)+' '+(y+Math.sin(ang)*L).toFixed(2)
+        +' L'+(x+Math.cos(a2)*w).toFixed(2)+' '+(y+Math.sin(a2)*w).toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'方环',f:(x,y,r)=>{
+    /* 斜 45° 方环（钻石俯视） */
+    const R=r*1.28, th=r*0.12;
+    const p=(d2)=>[[x+R*d2, y],[x, y+R*d2],[x-R*d2, y],[x, y-R*d2]];
+    const ring=(S,T)=>{
+      const o=p(S), i=p(T);
+      let s='M'+o[0][0]+' '+o[0][1];
+      for(let k=1;k<4;k++) s+=' L'+o[k][0]+' '+o[k][1];
+      s+=' Z M'+i[0][0]+' '+i[0][1];
+      for(let k=1;k<4;k++) s+=' L'+i[k][0]+' '+i[k][1];
+      return s+' Z ';
+    };
+    return ring(R,R-th);
+  }},
+  {n:'钩芒',f:(x,y,r)=>{
+    /* 4 根末端带弯钩的芒（ question 钩形） */
+    let d='';
+    for(let k=0;k<4;k++){
+      const ang=k*Math.PI/2-Math.PI/2, L=r*3.4;
+      const ex=x+Math.cos(ang)*L, ey=y+Math.sin(ang)*L;
+      const ha=ang+1.1;
+      d+='M'+x+' '+y+' L'+ex.toFixed(2)+' '+ey.toFixed(2)
+        +' L'+(ex+Math.cos(ha)*r*1.0).toFixed(2)+' '+(ey+Math.sin(ha)*r*1.0).toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'十字花',f:(x,y,r)=>{
+    /* 8 圆点绕十字排列（花瓣点阵） */
+    let d='';
+    const c=r*0.62;
+    d+='M'+(x-c).toFixed(2)+' '+y+' A'+c.toFixed(2)+' '+c.toFixed(2)+' 0 1 0 '+(x+c).toFixed(2)+' '+y
+      +' A'+c.toFixed(2)+' '+c.toFixed(2)+' 0 1 0 '+(x-c).toFixed(2)+' '+y+' Z ';
+    for(let k=0;k<8;k++){
+      const ang=k*Math.PI/4, R=r*2.4, s=r*(k%2===0?0.52:0.40);
+      const cx=x+Math.cos(ang)*R, cy=y+Math.sin(ang)*R;
+      d+='M'+(cx-s).toFixed(2)+' '+cy.toFixed(2)+' A'+s.toFixed(2)+' '+s.toFixed(2)+' 0 1 0 '+(cx+s).toFixed(2)+' '+cy.toFixed(2)
+        +' A'+s.toFixed(2)+' '+s.toFixed(2)+' 0 1 0 '+(cx-s).toFixed(2)+' '+cy.toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'锯芒',f:(x,y,r)=>{
+    /* 圆环外沿一圈锯齿（齿轮） */
+    let d='';
+    const R1=r*2.1, R2=r*2.9, n=10;
+    for(let k=0;k<n*2;k++){
+      const ang=k*Math.PI/n, rad=(k%2===0)?R2:R1;
+      const px=x+Math.cos(ang)*rad, py=y+Math.sin(ang)*rad;
+      d+=(k?'L':'M')+px.toFixed(2)+' '+py.toFixed(2)+' ';
+    }
+    d+='Z ';
+    const th=r*0.5;
+    d+='M'+(x-R1+th).toFixed(2)+' '+y+' A'+(R1-th).toFixed(2)+' '+(R1-th).toFixed(2)+' 0 1 1 '+(x+R1-th).toFixed(2)+' '+y
+      +' A'+(R1-th).toFixed(2)+' '+(R1-th).toFixed(2)+' 0 1 1 '+(x-R1+th).toFixed(2)+' '+y+' Z';
+    return d;
+  }},
+  {n:'雪花点',f:(x,y,r)=>{
+    /* 中心小六芒点 + 周围 6 颗微点 */
+    let d='';
+    for(let k=0;k<6;k++){
+      const ang=k*Math.PI/3-Math.PI/2, L=r*1.9, w=r*0.15;
+      const a1=ang-Math.PI/2, a2=ang+Math.PI/2;
+      d+='M'+(x+Math.cos(a1)*w).toFixed(2)+' '+(y+Math.sin(a1)*w).toFixed(2)
+        +' L'+(x+Math.cos(ang)*L).toFixed(2)+' '+(y+Math.sin(ang)*L).toFixed(2)
+        +' L'+(x+Math.cos(a2)*w).toFixed(2)+' '+(y+Math.sin(a2)*w).toFixed(2)+' Z ';
+    }
+    for(let k=0;k<6;k++){
+      const ang=k*Math.PI/3, R=r*3.0, s=r*0.30;
+      const cx=x+Math.cos(ang)*R, cy=y+Math.sin(ang)*R;
+      d+='M'+(cx-s).toFixed(2)+' '+cy.toFixed(2)+' A'+s.toFixed(2)+' '+s.toFixed(2)+' 0 1 0 '+(cx+s).toFixed(2)+' '+cy.toFixed(2)
+        +' A'+s.toFixed(2)+' '+s.toFixed(2)+' 0 1 0 '+(cx-s).toFixed(2)+' '+cy.toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'光圈',f:(x,y,r)=>{
+    /* 亮核 + 单圈光晕环（同心双圆） */
+    const c=r*0.85, R=r*2.6, th=r*0.42;
+    let d='M'+(x-c).toFixed(2)+' '+y+' A'+c.toFixed(2)+' '+c.toFixed(2)+' 0 1 0 '+(x+c).toFixed(2)+' '+y
+      +' A'+c.toFixed(2)+' '+c.toFixed(2)+' 0 1 0 '+(x-c).toFixed(2)+' '+y+' Z ';
+    d+='M'+(x-R).toFixed(2)+' '+y+' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 1 0 '+(x+R).toFixed(2)+' '+y
+      +' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 1 0 '+(x-R).toFixed(2)+' '+y+' Z ';
+    const ri=R-th;
+    return d+'M'+(x-ri).toFixed(2)+' '+y+' A'+ri.toFixed(2)+' '+ri.toFixed(2)+' 0 1 1 '+(x+ri).toFixed(2)+' '+y
+      +' A'+ri.toFixed(2)+' '+ri.toFixed(2)+' 0 1 1 '+(x-ri).toFixed(2)+' '+y+' Z';
+  }},
+  {n:'波纹',f:(x,y,r)=>{
+    /* 三条同心弧（雷达波） */
+    let d='';
+    for(let i=0;i<3;i++){
+      const R=r*(1.2+i*0.95), th=r*0.14, a0=-1.1, a1=1.1;
+      const p0=[x+Math.cos(a0)*R,y+Math.sin(a0)*R], p1=[x+Math.cos(a1)*R,y+Math.sin(a1)*R];
+      const q1=[x+Math.cos(a1)*(R-th),y+Math.sin(a1)*(R-th)], q0=[x+Math.cos(a0)*(R-th),y+Math.sin(a0)*(R-th)];
+      d+='M'+p0[0].toFixed(2)+' '+p0[1].toFixed(2)+' A'+R.toFixed(2)+' '+R.toFixed(2)+' 0 0 1 '+p1[0].toFixed(2)+' '+p1[1].toFixed(2)
+        +' L'+q1[0].toFixed(2)+' '+q1[1].toFixed(2)+' A'+(R-th).toFixed(2)+' '+(R-th).toFixed(2)+' 0 0 0 '+q0[0].toFixed(2)+' '+q0[1].toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+  {n:'连珠',f:(x,y,r)=>{
+    /* 一条弧线上串 5 颗渐大的珠 */
+    let d='';
+    const a0=2.6, a1=-0.5, R=r*2.6;
+    const sizes=[0.30,0.42,0.55,0.70,0.88];
+    for(let k=0;k<5;k++){
+      const t=k/4, ang=a0+(a1-a0)*t, s=sizes[k]*r;
+      const cx=x+Math.cos(ang)*R, cy=y+Math.sin(ang)*R;
+      d+='M'+(cx-s).toFixed(2)+' '+cy.toFixed(2)+' A'+s.toFixed(2)+' '+s.toFixed(2)+' 0 1 0 '+(cx+s).toFixed(2)+' '+cy.toFixed(2)
+        +' A'+s.toFixed(2)+' '+s.toFixed(2)+' 0 1 0 '+(cx-s).toFixed(2)+' '+cy.toFixed(2)+' Z ';
+    }
+    return d;
+  }},
+];
+
+/* 星芒图案缩略图选择器 */
+window.sortMode=false;
+try{const sv=localStorage.getItem('spikeOrder');if(sv){const arr=JSON.parse(sv);
+  if(Array.isArray(arr)&&arr.length===SPIKES.length&&arr.every(n=>SPIKES.some(s=>s.n===n))){
+    arr.forEach(n=>{const i=SPIKES.findIndex(s=>s.n===n);if(i>=0)SPIKES.push(SPIKES.splice(i,1)[0]);});
+  }}}catch(e){}
+function saveSpikeOrder(){try{localStorage.setItem('spikeOrder',JSON.stringify(SPIKES.map(s=>s.n)));}catch(e){}}
+function moveSpike(i,dir){
+  const j=i+dir;
+  if(j<0||j>=SPIKES.length)return;
+  const t=SPIKES[i];SPIKES[i]=SPIKES[j];SPIKES[j]=t;
+  saveSpikeOrder();
+  const box=$('spkprev');
+  box.dataset.sel='';
+  const sel=Math.round(+$('spk').value||0);
+  const newSel=(i===sel)?j:(j===sel?i:sel);
+  $('spk').value=newSel;
+  renderSpkPrev();
+  build();
+}
+function renderSpkPrev(){
+  const box=$('spkprev');
+  const sel=Math.round(+$('spk').value||0);
+  if(box.dataset.sel===String(sel)+'|'+String(sortMode)&&box.children.length===SPIKES.length)return;
+  box.dataset.sel=String(sel)+'|'+String(sortMode);
+  box.innerHTML='';
+  SPIKES.forEach((sp,i)=>{
+    const d=document.createElement('div');
+    d.className=i===sel?'on':'';
+    d.style.position='relative';
+    const c=18,r=1.5;
+    const body=sp.f(c,c,r);
+    let sv='<svg width="30" height="30" viewBox="0 0 36 36">';
+    if(sp.n==='无芒')sv+='<circle cx="18" cy="18" r="2.6" fill="#9DB4D8"/>';
+    else sv+='<circle cx="18" cy="18" r="1.4" fill="#9DB4D8" opacity=".45"/>'
+      +'<path d="'+body+'" fill="#C8D8F0" fill-opacity=".75" fill-rule="evenodd" stroke="#C8D8F0" stroke-opacity=".4" stroke-width=".5"/>';
+    sv+='</svg><span>'+sp.n+'</span>';
+    d.innerHTML=sv;
+    d.onclick=()=>{$('spk').value=i;build();};
+    if(sortMode){
+      d.draggable=true;
+      d.ondragstart=(e)=>{window._dragIdx=i;e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',String(i));}catch(err){}};
+      d.ondragend=()=>{window._dragIdx=-1;Array.prototype.forEach.call(box.children,c=>c.style.boxShadow='');};
+      d.ondragover=(e)=>{
+        e.preventDefault();
+        if(window._dragIdx<0||window._dragIdx===i)return;
+        const rect=d.getBoundingClientRect();
+        const before=(e.clientX-rect.left)<rect.width/2;
+        const tgt=window._dragIdx+(before?(window._dragIdx<i?-1:0):1);
+        if(tgt===window._dragIdx||tgt===window._dragIdx+1){d.style.boxShadow='';return;}
+        Array.prototype.forEach.call(box.children,c=>c.style.boxShadow='');
+        d.style.boxShadow=before?'inset 3px 0 0 #4A90D9':'inset -3px 0 0 #4A90D9';
+      };
+      d.ondragleave=()=>{d.style.boxShadow='';};
+      d.ondrop=(e)=>{
+        e.preventDefault();
+        d.style.boxShadow='';
+        const from=window._dragIdx;
+        if(from<0||from===i)return;
+        const rect=d.getBoundingClientRect();
+        const before=(e.clientX-rect.left)<rect.width/2;
+        const item=SPIKES.splice(from,1)[0];
+        let to=i;
+        if(from<i)to=before?i-1:i; else to=before?i:i+1;
+        SPIKES.splice(to,0,item);
+        saveSpikeOrder();
+        window._dragIdx=-1;
+        box.dataset.sel='';
+        renderSpkPrev();
+        build();
+      };
+      const up=document.createElement('span');
+      up.textContent='▲';up.title='上移';
+      up.style.cssText='position:absolute;top:1px;left:4px;font-size:9px;color:#7FB0E8;cursor:pointer;padding:2px;line-height:1';
+      up.onclick=(e)=>{e.stopPropagation();moveSpike(i,-1);};
+      const dn=document.createElement('span');
+      dn.textContent='▼';dn.title='下移';
+      dn.style.cssText='position:absolute;bottom:1px;right:4px;font-size:9px;color:#7FB0E8;cursor:pointer;padding:2px;line-height:1';
+      dn.onclick=(e)=>{e.stopPropagation();moveSpike(i,1);};
+      d.appendChild(up);d.appendChild(dn);
+      if(i===0)up.style.visibility='hidden';
+      if(i===SPIKES.length-1)dn.style.visibility='hidden';
+    }
+    box.appendChild(d);
+  });
+}
+
+/* ============ 生成 SVG ============ */
+;window.__blk=(window.__blk||0)+1;}catch(e){var b=document.getElementById("errbox");b.style.display="block";b.textContent="⚠️ 初始化错误 [SPIKES]: "+e.message;}</script>
+<script>/*BLK:buildSVG*/try{
+window.mulberry32=function(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};};/* ④ SVG 构建 */
+function buildSVG(forPreview,pct){
+  const c=CONS[cur];
+  const W=+$('w').value,H=+$('h').value;
+  const magK=+$('mag').value,glowA=+$('glow').value,lineA=+$('line').value,bgN=+$('bg').value;
+  const dimOn=$('dim').checked, showLine=$('ln').checked;
+  const MX=20,MY=12,PW=W-MX*2,PH=H-MY*2;
+  /* 真实天球投影（Star Walk 风格）：
+     x = 赤经差 × 15 × cos(赤纬)，y = -赤纬差，统一 deg→px 比例，严格等比不拉伸。
+     「等比填满」开启时整体等比缩放到刚好填满画布（比例仍不变，只缩放不拉伸）。 */
+  const mir=$('mir').checked, fillMode=$('fill').checked;
+  const ras=c.stars.map(s=>s[0]),decs=c.stars.map(s=>s[1]);
+  const d0=Math.min(...decs),d1=Math.max(...decs);
+  const cosD=Math.cos(((d0+d1)/2)*Math.PI/180);
+  /* 度坐标（x 向右为赤经增大方向，便于镜像控制；y 向下） */
+  const raMean=Math.atan2(c.stars.reduce((a,r)=>a+Math.sin(r[0]*Math.PI/12),0),c.stars.reduce((a,r)=>a+Math.cos(r[0]*Math.PI/12),0))/(Math.PI*2)*24;
+  const fold=r=>{let d=(r-raMean)%24;if(d>12)d-=24;if(d<-12)d+=24;return raMean+d;};
+  let Q;
+  if(c.xy){ /* 手绘模式：xy 为 0..1 归一化相对坐标（y 向下），按画布等比缩放 */
+    const xs=c.xy.map(q=>q[0]),ys=c.xy.map(q=>q[1]);
+    const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+    /* 手绘数据是「整格」里的相对位置（0..1 视作整格方框），按整格 1×1 等比装入画布：
+       这样构图与壁纸一致——星群该偏左就偏左，不会被拉伸成满宽 */
+    const bw=Math.max(x1-x0,1e-6),bh=Math.max(y1-y0,1e-6);
+    const BOX=Math.max(bw,bh,1e-6); // 数据本身的坐标框（壁纸方格）
+    const k=Math.min(PW/BOX,PH/BOX)*(fillMode?0.94:0.92);
+    const offX=(PW-BOX*k)/2, offY=(PH-BOX*k)/2;
+    Q=c.xy.map((p,i)=>[+(MX+offX+(p[0]-x0)*k).toFixed(2),
+                       +(MY+offY+(p[1]-y0)*k).toFixed(2), c.stars[i][2]]);
+  }else{
+  const proj=c.stars.map(s=>{const r=fold(s[0]);return [(mir?-1:1)*(r-raMean)*15*Math.max(cosD,0.05),-s[1]];});
+  const px0=Math.min(...proj.map(p=>p[0])),px1=Math.max(...proj.map(p=>p[0]));
+  const py0=Math.min(...proj.map(p=>p[1])),py1=Math.max(...proj.map(p=>p[1]));
+  const bw=Math.max(px1-px0,0.001),bh=Math.max(py1-py0,0.001);
+  /* 唯一缩放比例：取两轴能容纳的较小值 → 绝不非均匀拉伸 */
+  const sFit=Math.min(PW/bw,PH/bh);
+  /* 填充模式：取两轴能容纳的较小比例（某一轴刚好触边），另一轴居中 → 横向空白最少。
+     再乘 0.955 为光晕/星芒留出明显余量，避免贴边星点的外圈被画布裁掉。 */
+  const kScale=(fillMode?sFit:Math.min(sFit,PH/bh))*(fillMode?0.955:1);
+  Q=c.stars.map((s,i)=>[
+    +(MX+(PW-bw*kScale)/2+(proj[i][0]-px0)*kScale).toFixed(2),
+    +(MY+(PH-bh*kScale)/2+(proj[i][1]-py0)*kScale).toFixed(2),
+    s[2]
+  ]);}
+  /* 星等 → 核心半径（后续越界自检与本函数共用，故提前定义） */
+  const magR=w=>(0.9+w*0.62*magK).toFixed(2);
+  const N=Q.length;
+  /* 群星散开：间距过近的星互相推开，避免光晕融成一团 */
+  const minD=14;
+  for(let it=0;it<80;it++){
+    for(let a=0;a<N;a++)for(let b=a+1;b<N;b++){
+      let dx=Q[b][0]-Q[a][0],dy=Q[b][1]-Q[a][1];
+      let d=Math.hypot(dx,dy);
+      if(d<minD){
+        if(d<0.01){dx=0.6;dy=0.4;d=0.72;}
+        const push=(minD-d)/d*0.35;
+        Q[a][0]-=dx*push;Q[a][1]-=dy*push;
+        Q[b][0]+=dx*push;Q[b][1]+=dy*push;
+      }
+    }
+  }
+  /* 越界自检：散开/投影后若星点连同光晕超出画布，整体等比回缩到安全区内
+     （保证星芒与光晕完整，不会被画布裁掉） */
+  (function fitInside(){
+    const GLOWK=3.6,SPKK=3.6;      /* 光晕/星芒相对核心半径的最大外扩（实测约 3.4 倍，取 3.6 留余量） */
+    const PADR=3;                   /* 仍需保留的最小边距 */
+    const ext=Q.map(p=>{const r=+magR(p[2]);return Math.max(r*GLOWK,r*SPKK);});
+    let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+    Q.forEach((p,i)=>{x0=Math.min(x0,p[0]-ext[i]);x1=Math.max(x1,p[0]+ext[i]);
+                      y0=Math.min(y0,p[1]-ext[i]);y1=Math.max(y1,p[1]+ext[i]);});
+    /* 以包围盒中心为锚点等比缩放 */
+    const cw=x1-x0,ch=y1-y0;
+    if(x0<PADR||y0<PADR||x1>W-PADR||y1>H-PADR){
+      const kx=(W-2*PADR)/Math.max(cw,1e-6), ky=(H-2*PADR)/Math.max(ch,1e-6);
+      const k=Math.min(1,kx,ky);
+      const cx=(x0+x1)/2,cy=(y0+y1)/2;
+      for(let i=0;i<N;i++){Q[i][0]=+(cx+(Q[i][0]-cx)*k).toFixed(2);Q[i][1]=+(cy+(Q[i][1]-cy)*k).toFixed(2);}
+    }
+  })();
+  /* 每颗星到最近邻的距离（用于给光晕封顶） */
+  const nn=Q.map((p,i)=>Math.min(...Q.filter((_,j)=>j!==i).map(q=>Math.hypot(q[0]-p[0],q[1]-p[1]))));
+  const gid='sky-'+cur;
+
+  let defs=
+'  <radialGradient id="'+gid+'-glow">\n'
++'    <stop offset="0" stop-color="currentColor" stop-opacity="'+(0.85*glowA)+'"/>\n'
++'    <stop offset="0.4" stop-color="currentColor" stop-opacity="'+(0.25*glowA)+'"/>\n'
++'    <stop offset="1" stop-color="currentColor" stop-opacity="0"/>\n'
++'  </radialGradient>\n'
++'  <radialGradient id="'+gid+'-core">\n'
++'    <stop offset="0" stop-color="#FFFFFF"/>\n'
++'    <stop offset="0.5" stop-color="currentColor"/>\n'
++'    <stop offset="1" stop-color="currentColor"/>\n'
++'  </radialGradient>\n';
+
+  /* 背景星野：以星座质心为原点做极坐标撒点，靠角处按镜头暗角自然变稀，
+     既不会出现矩形边界、也不会出现圆环边缘。 */
+  let bg='', bgDefs='', uses=[];
+  if(bgN>0){
+    const rnd=mulberry32(cur.length*777+Math.round(Q[0][0]*7)+N*31);
+    const SZ=+$('bgs').value||1;
+    const BR=+$('bgb').value||1;
+    const kk=Math.max(0.58,Math.min(1.30,Math.pow(170/Math.max(Math.min(H,W*0.42),60),0.55)));
+    const cap=Math.min.apply(null,Q.map(q=>+magR(q[2])))*0.80;   /* 星野最大半径：明显小于最暗主星，仍能一眼分出主次 */
+    const cxQ=Q.reduce((a,q)=>a+q[0],0)/N, cyQ=Q.reduce((a,q)=>a+q[1],0)/N;
+    /* 星野只撒在画布内（画布就是最终裁切框），PNG 裁切时才不会把星野当“骑边”剔掉 */
+    const cnt=Math.max(1,Math.round((W*H)/1000*bgN/12.5));   /* 星团集中后观感更密，总量略降以平衡体积与均匀度 */
+    /* 星点半径：连续取值（不再只有 4 个固定尺寸），幂律分布让「小星很多、大星偶有」，
+       再用 0.1px 取整 + 上限截断，保证星野永远小于最暗主星。 */
+    const rBaseW=(0.30+0.36)*kk*SZ;
+    /* 尺寸-亮度平衡：变大时轻微压暗、变小时也压暗（避免小尺寸的针尖感），中段最亮 */
+    const dimK=1/(1+Math.max(0,SZ-1)*0.30+Math.max(0,1.1-SZ)*0.34);
+    /* 半径档位 = 基准尺度 × 固定倍率表。
+       关键：整张星野的「大小」由基准尺度统一决定（滑块直接驱动），倍率表只负责大小层次；
+       以前把档位固定铺满 [最小, cap]，滑块只移动下沿，中间档几乎不动，看起来就像只有亮度在变。 */
+    const RT=[0.72,0.82,0.93,1.05,1.18,1.32,1.48,1.66,1.86,2.08,2.32,2.60,2.90,3.24];
+    const rMed=+(0.52*rBaseW).toFixed(3);    /* 基准尺度：0.5→约0.17，1.8→约0.62，3.0→约1.03 */
+    /* 档位生成后做去重：取整到 0.1px 时相邻档会撞成同一半径（如 0.4/0.4），
+       导致大量星点堆在同一个最小值上、整片星野显得又细又弱。 */
+    const radii=[];
+    RT.forEach(m=>{
+      const v=+Math.min(cap,rMed*m).toFixed(1);
+      if(v<0.22)return;                       /* 去掉亚像素档：缩到页面宽度后这类星点直接消失 */
+      if(radii.length&&v<=radii[radii.length-1]+0.05)return;
+      radii.push(v);
+    });
+    if(!radii.length)radii.push(+Math.max(0.22,cap*0.5).toFixed(1));
+    /* 星点用径向渐变填充（中心实、边缘柔），避免半径变大后变成一个个硬边实心圆点。
+       渐变只定义一次，所有星点共用，不增加体积。 */
+    let def='  <radialGradient id="'+gid+'-dot">\n'
+      +'    <stop offset="0" stop-color="currentColor" stop-opacity="1"/>\n'
+      +'    <stop offset="0.45" stop-color="currentColor" stop-opacity="0.95"/>\n'
+      +'    <stop offset="1" stop-color="currentColor" stop-opacity="0"/>\n'
+      +'  </radialGradient>\n';
+    for(let lv=0;lv<radii.length;lv++){
+      const rb=radii[lv];
+      /* halo 用独立低透明度渐变：不写死 fill-opacity，亮度由 <use> 继承控制，跟随亮度滑块 */
+      const halo=(lv>=radii.length-2)?('<circle cx="0" cy="0" r="'+(rb*1.75).toFixed(1)+'" fill="url(#'+gid+'-halo)"/>'):'';
+      def+='  <radialGradient id="'+gid+'-halo">\n'
+        +'    <stop offset="0" stop-color="currentColor" stop-opacity="0.16"/>\n'
+        +'    <stop offset="0.55" stop-color="currentColor" stop-opacity="0.08"/>\n'
+        +'    <stop offset="1" stop-color="currentColor" stop-opacity="0"/>\n'
+        +'  </radialGradient>\n';
+      /* 外层用渐变圆（半径略放大，柔化边缘），整体以 fill-opacity 控亮度 */
+      /* 模板内不写死透明度：否则每个 <use> 的 fill-opacity 只能相乘（最高 0.55），
+         星团主体永远亮不起来，也和外围 circle 路径不一致。 */
+      def+='  <g id="'+gid+'-s'+lv+'">'+halo+'<circle cx="0" cy="0" r="'+(rb*1.25).toFixed(1)+'" fill="url(#'+gid+'-dot)"/></g>\n';
+    }
+    bgDefs=def;
+    /* 体积优化：星座包围盒外围的星点写成裸 <circle> —— 同一档共用一条 <g fill-opacity>，
+       每颗只占「两个数字」，比逐颗 <use>（约 45 字节）省一半以上；
+       包围盒内部半径/亮度差异大，仍用 4 档 <use> 引用。 */
+    const qx=Q.map(p=>p[0]), qy=Q.map(p=>p[1]);
+    let qx0=Math.min(...qx)-2, qx1=Math.max(...qx)+2, qy0=Math.min(...qy)-2, qy1=Math.max(...qy)+2;
+    const inBox=(x,y)=>x>qx0&&x<qx1&&y>qy0&&y<qy1;
+    const rows={};                               /* "半径|透明度" → 点集，聚成一行输出 */
+    const r2n=o=>Math.round(o*2)/2;
+    /* 软边：越靠近画布边缘越稀，同时星点整体往内收一点点，
+       这样即便数量很大也不会在四边堆出一条“直线星墙”（旧版用硬夹取，会在边上排成一整排）。 */
+    const EBX=Math.max(3,Math.min(14,W*0.035)), EBY=Math.max(2,Math.min(12,H*0.06));
+    const edgeFade=(x,y)=>{
+      const dx=Math.min(x,W-x)/EBX, dy=Math.min(y,H-y)/EBY;
+      const d=Math.min(dx,dy);
+      return d>=1?1:0.18+0.82*Math.pow(d,1.35);      /* 贴边最稀 0.18，向内平滑恢复 */
+    };
+    /* 中心星团：以星座质心为核、向外平滑过渡的一团。
+       「聚拢程度」由滑块驱动 —— 大小越大，核心收得越紧、星也越大；亮度越大，核心越亮。
+       用平缓的幂次（而非陡峭的高斯）过渡，避免中间突兀地糊成一团。 */
+    /* 用包围盒中心而非质心：质心会被离群星拉偏，星团容易贴到一侧 */
+    const hub={x:(qx0+qx1)/2,y:(qy0+qy1)/2,rx:Math.max(62,W*0.34),ry:Math.max(34,H*0.42)};
+    /* 星团聚拢程度固定：星野大小滑块只改「星的尺寸」，不再顺带改变星团的疏密形状，
+       这样星团看起来和其它星野是同一套大小口径，调大调小整体一致。 */
+    const hubPow=1.62;
+    /* 已落点网格索引：用于「最小间距」拒绝采样，避免核心区多颗星叠在同一坐标糊成亮块 */
+    const _cell=Math.max(3,Math.min(W,H)*0.022);
+    const _grid=new Map();
+    const _key=(x,y)=>((x/_cell)|0)+','+((y/_cell)|0);
+    const _tooClose=(x,y,d)=>{
+      const gx=(x/_cell)|0, gy=(y/_cell)|0;
+      const d2=d*d;
+      for(let a=gx-1;a<=gx+1;a++)for(let b=gy-1;b<=gy+1;b++){
+        const arr=_grid.get(a+','+b);
+        if(!arr)continue;
+        for(const p of arr)if((p[0]-x)*(p[0]-x)+(p[1]-y)*(p[1]-y)<d2)return true;
+      }
+      return false;
+    };
+    const _add=(x,y)=>{const k=_key(x,y);(_grid.get(k)||_grid.set(k,[]).get(k)).push([x,y]);};
+    for(let i=0;i<cnt*1.6;i++){
+      if(uses.length+Object.values(rows).reduce((a,v)=>a+v.length,0)>=cnt)break;
+      /* 三种撒法混合：42% 中心星团（聚拢，随滑块收紧）+ 30% 星座周围散云 + 28% 全画布均匀；
+         后两者保证星座偏左/偏上时，另一侧也有星，不会出现大片空白。 */
+      const pick=rnd();
+      let bx,by,inHub=false;
+      if(pick<0.42){
+        /* 星团核心两侧都留间距：反复重抽，最多 6 次仍冲突则放宽到 0.62 倍间距 */
+        let ok=false;
+        for(let t=0;t<10;t++){
+          const ang=rnd()*Math.PI*2;
+          const u=Math.pow(rnd(),hubPow);
+          bx=hub.x+Math.cos(ang)*hub.rx*u; by=hub.y+Math.sin(ang)*hub.ry*u;
+          const md=Math.max(3.6,Math.min(12,Math.min(hub.rx,hub.ry)*0.085))*(t<7?1:0.6);
+          if(!_tooClose(bx,by,md)){ok=true;break;}
+        }
+        if(!ok)continue;
+        inHub=true;
+      }else if(pick<0.72){
+        const ang=rnd()*Math.PI*2;
+        const rad=Math.pow(rnd(),0.90)*Math.sqrt(Math.pow(W/2,2)+Math.pow(H/2,2))*0.98;
+        bx=cxQ+Math.cos(ang)*rad; by=cyQ+Math.sin(ang)*rad*0.85;
+      }else{
+        bx=W*rnd(); by=H*rnd();
+      }
+      /* 椭圆边 → 矩形四角之间的镜头暗角：越靠角越稀，消除圆环/方形边界感 */
+      const dc=Math.hypot((bx-cxQ)/Math.max(1,W*0.5),(by-cyQ)/Math.max(1,H*0.5));
+      if(dc>1.02&&rnd()>Math.max(0.10,1.45-dc))continue;
+      const radFade=Math.max(0.55,1-dc*0.30);
+      /* 出界直接丢弃重抽（绝不夹到边上），留出半径余量，星点整体不被切 */
+      const mR=3.2;
+      if(bx<mR||bx>W-mR||by<mR||by>H-mR)continue;
+      const ef=edgeFade(bx,by);
+      if(ef<1&&rnd()>(ef-0.10)/0.90)continue;        /* 边缘按比例变稀 */
+      const rz=rnd(), rr=rnd(), rq=rnd();
+      /* 星团只负责「更密、略亮一点」，不改变星野的大小口径：
+         半径完全由滑块统一决定（和外围同一套档位），亮度也只有轻微的 +18% 加成，
+         否则调「星野亮度」时星团会被单独放大/压暗，看起来脱节。 */
+      const hubK=inHub?Math.max(0,1-Math.hypot((bx-hub.x)/hub.rx,(by-hub.y)/hub.ry)):0;
+      /* 半径：幂律抽样（指数 1.35）→ 小的偏多、大的渐少。星团内分布整体略偏大一点点 */
+      const q2=Math.min(1,Math.pow(rq,1.35)*(1+hubK*0.18));
+      const ri=Math.min(radii.length-1,Math.floor(q2*radii.length));
+      const rad1=radii[ri];
+      /* 亮度：与尺寸挂钩但不完全绑定；星团内仅 +18%，保证「亮度」滑块对整片（含星团）统一生效 */
+      /* 亮度结构：以「亮度滑块」为主导（0.45~1.60 倍），尺寸只做小幅修饰（0.78~1.12 倍），
+         避免小星点基数过低压不动亮度，也避免大星把亮度系数吃掉。 */
+      const szF=0.78+0.34*(ri/Math.max(1,radii.length-1))+rz*0.10;
+      let op=(0.34+rr*rr*0.46)*Math.min(1.10,kk)*dimK*radFade*ef*szF*(0.30+0.62*Math.min(BR,2.9))*(1+hubK*0.18);
+      op=Math.min(0.97,op);
+      if(op<0.025)continue;
+      _add(r2n(bx),r2n(by));
+      if(inBox(bx,by)){
+        uses.push('<use xlink:href="#'+gid+'-s'+ri+'" x="'+r2n(bx)+'" y="'+r2n(by)+'" fill-opacity="'+op.toFixed(2)+'"/>');
+      }else{
+        const o2=Math.max(0.04,Math.min(0.9,Math.round(op*10)/10));   /* 亮度取整到 0.1，便于同行合并 */
+        const key=rad1+'|'+o2.toFixed(2);   /* 保留两位：0.04 若四舍五入成 0.0 会整组看不见 */
+        (rows[key]||(rows[key]=[])).push([bx,by]);
+      }
+    }
+    /* 整组统一 fill 用渐变（只写一次，不给每颗加属性），保持体积；半径略放大以配合渐隐边缘 */
+    for(const key of Object.keys(rows)){
+      const [rS,opS]=key.split('|');
+      let line='    <g fill-opacity="'+opS+'">';
+      for(const [x,y] of rows[key]) line+='<circle cx="'+r2n(x)+'" cy="'+r2n(y)+'" r="'+(+(rS)*1.25).toFixed(1)+'"/>';
+      bg+=line+'</g>\n';
+    }
+    window.__bgStat={cnt,outer:Object.values(rows).reduce((a,v)=>a+v.length,0),levels:Object.keys(rows).length};
+    bg='  <g fill="currentColor" data-bg="1">\n'+bg+(uses.length?('    '+uses.join('\n    ')+'\n'):'')+'  </g>\n';
+    /* 外围裸 circle 也套用柔化渐变，与 <use> 星点观感一致 */
+    bg=bg.replace('data-bg="1">','data-bg="1" data-soft="1">');
+    bg=bg.replace('<g fill-opacity="','<g fill="url(#'+gid+'-dot)" fill-opacity="');
+  }
+
+  function starCirc(x,y,r,op){return '<circle cx="'+x+'" cy="'+y+'" r="'+r+'"'+(op!==undefined?' fill-opacity="'+op+'"':'')+'/>';}
+  const spkIdx=Math.max(0,Math.min(SPIKES.length-1,Math.round(+$('spk').value||0)));
+  const SPK=SPIKES[spkIdx];
+  function sparkle(x,y,r){
+    const d=SPK.f(x,y,r);
+    if(!d)return '';
+    return '<path d="'+d+'" fill="currentColor" fill-opacity="'+(0.22*glowA*2).toFixed(2)+'" fill-rule="evenodd" stroke="currentColor" stroke-opacity="'+(0.16*glowA*2).toFixed(2)+'" stroke-width="0.5"/>';
+  }
+  /* 星芒显示上限：星等 ≤ 该值的星带星芒（星等越小越亮） */
+  const SPK_MAX=spkIdx===0?-99:3.2;
+
+  /* 暗层 */
+  let dimG='';
+  if(dimOn){
+    dimG='  <g>\n';
+    if(showLine){
+      dimG+='    <g stroke="currentColor" stroke-opacity="'+(lineA*0.35).toFixed(2)+'" stroke-width="0.8" stroke-dasharray="2 3" fill="none">\n';
+      for(const[a,b]of c.link)dimG+='      <line x1="'+Q[a][0]+'" y1="'+Q[a][1]+'" x2="'+Q[b][0]+'" y2="'+Q[b][1]+'"/>\n';
+      dimG+='    </g>\n';
+    }
+    dimG+='    <g fill="currentColor" fill-opacity="0.22">\n';
+    Q.forEach(p=>{dimG+='      '+starCirc(p[0],p[1],magR(p[2]))+'\n';});
+    dimG+='    </g>\n  </g>\n';
+  }
+
+  /* 亮层：沿连线轨迹逐颗点亮（每颗星占一步，连线与其指向的星同一步亮起） */
+  function lineEl0(a,b){
+    if(!showLine)return '';
+    return '<line x1="'+Q[a][0]+'" y1="'+Q[a][1]+'" x2="'+Q[b][0]+'" y2="'+Q[b][1]+'" stroke="currentColor" stroke-opacity="'+lineA+'" stroke-width="1.3" stroke-linecap="round"/>';
+  }
+  function starEl(i){
+    const[x,y,w]=Q[i],r=+magR(w);
+    /* 光晕半径：倍数随「光晕强度」滑块缩放（0 时几乎无光晕），
+       同时受最近邻距离封顶避免光晕融成一团；不再用固定下限（会把亮星暗星压成同一尺寸）。 */
+    const gk=0.40+glowA*0.95;                 /* 0→0.40x, 0.6→0.97x, 1→1.35x */
+    const gr=Math.min(r*3.4*gk, nn[i]*0.85+2).toFixed(2);
+    let s='<circle cx="'+x+'" cy="'+y+'" r="'+gr+'" fill="url(#'+gid+'-glow)"/>';
+    if(w<=SPK_MAX)s+=sparkle(x,y,r);
+    return s+'<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="url(#'+gid+'-core)"/>';
+  }
+  const adj=Array.from({length:N},()=>[]);
+  c.link.forEach(([a,b])=>{adj[a].push(b);adj[b].push(a);});
+  let start=0;
+  for(let i=0;i<N;i++)if(adj[i].length===1){start=i;break;}
+  const steps=[],vis=new Array(N).fill(false);
+  (function dfs(v,parent){
+    vis[v]=true;
+    steps.push({star:v,line:parent>=0?{a:parent,b:v}:null});
+    for(const nb of adj[v])if(!vis[nb])dfs(nb,v);
+  })(start,-1);
+  for(let i=0;i<N;i++)if(!vis[i])steps.push({star:i,line:null});
+  /* 未被轨迹覆盖的补线（成环等情况）并入最后一步 */
+  const used=new Set();
+  steps.forEach(s=>{if(s.line){used.add(s.line.a+'-'+s.line.b);used.add(s.line.b+'-'+s.line.a);}});
+  let extra='';
+  for(const[a,b]of c.link)if(!used.has(a+'-'+b)&&!used.has(b+'-'+a))extra+=lineEl0(a,b);
+  const S=steps.length;
+  /* 用参考生成器验证过的机制：round() 算式 + clipPath 几何裁剪（不用 opacity 宏、
+     不写 data-progress，避免宿主叠加连续裁剪）。
+     每步一个矩形：没轮到时 x 平移出画布，轮到时移回来罩住该步的星和线。 */
+  const OFF=2000, BIG=60000;
+  function clipExpr(s,X0){
+    return '{= '+X0.toFixed(2)+' + ('+(s+1)+' - round(chapterPct / 100 * '+S+')) * '+OFF+' }';
+  }
+  function stepOn(s){return Math.round(pct/100*S)>=s+1;}
+  /* 亮层内容构建（preview=true 用 opacity 模拟，导出用 clipPath） */
+  let stepDefs='',lit='';
+  steps.forEach((st,s)=>{
+    const inner=(st.line?lineEl0(st.line.a,st.line.b):'')+starEl(st.star)+(s===S-1?extra:'');
+    if(forPreview){
+      lit+='    <g opacity="'+(stepOn(s)?1:0)+'">'+inner+'</g>\n';
+    }else{
+      const xs=s===S-1?[0]:[Q[st.star][0],st.line?Q[st.line.a][0]:Q[st.star][0]];
+      const ys=s===S-1?[0]:[Q[st.star][1],st.line?Q[st.line.a][1]:Q[st.star][1]];
+      const X0=Math.min(...xs)-30,Y0=Math.min(...ys)-30;
+      defs+='  <clipPath id="'+gid+'-c'+s+'"><rect x="'+clipExpr(s,X0)+'" y="'+Y0+'" width="'+BIG+'" height="'+BIG+'"/></clipPath>\n';
+      lit+='    <g clip-path="url(#'+gid+'-c'+s+')">'+inner+'</g>\n';
+    }
+  });
+
+  let litG='  <g>\n'+lit+'  </g>\n';
+
+  return '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 '+W+' '+H+'">\n'
+    +'<defs>\n'+defs+(bgDefs||'')+'</defs>\n'
+    +bg+dimG+litG+'</svg>';
+}
+
+;window.__blk=(window.__blk||0)+1;}catch(e){var b=document.getElementById("errbox");b.style.display="block";b.textContent="⚠️ 初始化错误 [buildSVG]: "+e.message;}</script>
+<script>/*BLK:build*/try{/* ⑤ 界面渲染 */
+function build(){
+  $('spkv').textContent=SPIKES[Math.round(+$('spk').value||0)].n;
+  renderSpkPrev();
+  $('wv').textContent=$('w').value;
+  $('hv').textContent=$('h').value;
+  $('magv').textContent=(+$('mag').value).toFixed(2);
+  $('glowv').textContent=(+$('glow').value).toFixed(2);
+  $('linev').textContent=(+$('line').value).toFixed(2);
+  $('bgv').textContent=$('bg').value;
+  $('bgsv').textContent=(+$('bgs').value||1).toFixed(1)+'×';
+  $('bgbv').textContent=(+$('bgb').value||1).toFixed(1)+'×';
+  $('pctv').textContent=$('pct').value+'%';
+  const pct=+$('pct').value;
+  $('prev').innerHTML=buildSVG(true,pct);
+  const out=buildSVG(false);
+  $('out').value=out;
+  const N=CONS[cur].stars.length;
+  $('info').textContent=CONS[cur].name+' · '+N+' 颗主星 · 沿轨迹逐颗点亮 · '+(out.length/1024).toFixed(1)+' KB';
+  if(window.__codeHintUpd)window.__codeHintUpd();
+}
+for(const id of['w','h','mag','glow','line','bg','bgs','bgb','spk','dim','ln','fill','mir'])$(id).addEventListener('input',build);
+$('resetBtn').onclick=()=>{
+  const D={w:420,h:170,mag:1.2,glow:0.6,line:0.3,bg:42,bgs:1.8,bgb:1,spk:1};
+  for(const k in D){$(k).value=D[k];}
+  $('dim').checked=true;$('ln').checked=true;$('mir').checked=true;$('fill').checked=true;
+  $('pct').value=55;
+  cur='leo';
+  build();renderGrid();
+  $('resetBtn').textContent='✓ 已恢复默认';
+  setTimeout(()=>{$('resetBtn').textContent='恢复默认设置';},1200);
+};
+$('pct').addEventListener('input',build);
+var __cb=$('codeBox');
+if(__cb){var __upd=function(){var n=$('out').value.length;$('codeHint').textContent=(__cb.open?'收起代码预览':'展开代码预览')+' · '+(n/1024).toFixed(1)+' KB';};
+  __cb.addEventListener('toggle',__upd);window.__codeHintUpd=__upd;__upd();}
+$('copyBtn').onclick=()=>{navigator.clipboard.writeText($('out').value);$('copyBtn').textContent='✓ 已复制';setTimeout(()=>$('copyBtn').textContent='复制 SVG 代码',1200);};
+$('dlBtn').onclick=()=>{
+  const b=new Blob([$('out').value],{type:'image/svg+xml'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download='星空进度条-'+CONS[cur].name+'.svg';a.click();
+};
+/* SVG 代码另存为 txt（与复制内容完全一致）
+   iOS/iPadOS 的 Safari 会忽略 <a download>，把文件当网页直接打开（只有「完成」按钮）——
+   这类环境优先走系统分享面板（可「存储到文件」），其余浏览器照常下载。 */
+$('dlTxtBtn').onclick=()=>{
+  const code=$('out').value;
+  const name='星空进度条-'+CONS[cur].name+'-SVG代码.txt';
+  const b=new Blob([code],{type:'text/plain;charset=utf-8'});
+  const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||
+              (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const flash=()=>{const t=$('dlTxtBtn').textContent;$('dlTxtBtn').textContent='✓ 已下载';
+    setTimeout(()=>{$('dlTxtBtn').textContent='下载 txt';},1500);};
+  if(isIOS&&navigator.canShare&&navigator.canShare({files:[new File([code],name,{type:'text/plain'})]})){
+    try{
+      navigator.share({files:[new File([code],name,{type:'text/plain'})],title:name});
+      flash();return;
+    }catch(e){/* 用户取消或不支持，落到下面的常规下载 */}
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download=name;a.click();
+  flash();
+};
+$('sortBtn').onclick=()=>{
+  sortMode=!sortMode;
+  $('sortBtn').textContent=sortMode?'✓ 完成排序':'⇅ 调整顺序';
+  $('sortBtn').style.background=sortMode?'#223047':'#1F2531';
+  $('sortBtn').style.color=sortMode?'#E8F0FF':'#AEB6C8';
+  $('sortBtn').style.borderColor=sortMode?'#4A90D9':'#2B3242';
+  const box=$('spkprev');box.dataset.sel='';renderSpkPrev();
+};
+/* ===== 保存预览图 PNG ===== */
+window.pngTransparent=false;
+window.pngScale=6; /* 固定 6 倍矢量直出 */
+function pngPreview(){
+  const W=+$('w').value,H=+$('h').value;
+  const SC=window.pngScale;
+  /* 裁切留边：星芒可外扩到核心半径的 ~2.6 倍，按最亮主星算留边，避免尖端贴边/被切 */
+  const magK=+$('mag').value||1.2;
+  const maxCore=0.9+0.85*0.62*magK;              /* 最亮星核心半径（约 1.5） */
+  const sparkExt=maxCore*2.6;                    /* 星芒最大外扩 */
+  const pad=Math.max(10,Math.round(Math.min(W,H)*0.07),Math.round(sparkExt)+2);
+  const src=$('prev').querySelector('svg');
+  if(!src)return null;
+  /* 1) 测出星群真实包围盒（只算亮层与暗层主星，不含背景星野），据此裁掉左右空白。
+     注意：星野现在铺满整张画布，不能参与测量，否则包围盒被撑到画布满宽，裁切框会塌成一条线。 */
+  const circles=[].slice.call(src.querySelectorAll('circle,use'));
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+  circles.forEach(function(cc){
+    if(cc.closest&&cc.closest('[data-bg]'))return;    /* 背景星野整组跳过 */
+    if(cc.closest&&cc.closest('defs'))return;          /* <defs> 里是模板（坐标恒为 0），不是实际星点 */
+    const tag=cc.tagName.toLowerCase();
+    let cx,cy,r,f;
+    if(tag==='use'){
+      cx=+cc.getAttribute('x');cy=+cc.getAttribute('y');r=2;f='currentColor';
+    }else{
+      f=cc.getAttribute('fill')||'';
+      if(f.indexOf('url(')!==0&&f!=='currentColor')return; /* 跳过其它散点 */
+      cx=+cc.getAttribute('cx');cy=+cc.getAttribute('cy');r=+cc.getAttribute('r')||0;
+    }
+    if(!isFinite(cx)||!isFinite(cy))return;
+    /* 光晕圆本身已含半径；核心圆还要额外算上星芒外扩（核心半径的 ~2.6 倍） */
+    const isCore=f.indexOf('-core')>0;
+    const ext=(isCore?Math.max(r,r*2.6):r)+1;
+    x0=Math.min(x0,cx-ext);x1=Math.max(x1,cx+ext);y0=Math.min(y0,cy-ext);y1=Math.max(y1,cy+ext);
+  });
+  if(!isFinite(x0)){x0=0;y0=0;x1=W;y1=H;}
+  /* 2) 裁切框：左右按星群贴边（只留 pad），高度保持画布原比例 → 整图变短但构图不变形 */
+  let cw=Math.round(x1-x0+pad*2);
+  cw=Math.min(Math.max(cw,80),W);          /* 不超过原画布宽度 */
+  /* 高度同样按星群收紧，但只允许收到「上下各留 pad」为止，避免压到光晕/星芒 */
+  let chh=Math.round(Math.min(y1-y0+pad*2,H));
+  chh=Math.max(chh,Math.round(H*0.62));
+  const ch=chh;
+  const cy0=Math.max(0,Math.min(Math.round((y0+y1)/2-ch/2),H-ch));
+  const cx0=Math.max(0,Math.min(x0-pad,W-cw));
+  const scale=cw/(W);
+  const CW=Math.round(cw*SC),CH=Math.round(ch*SC);
+  /* 3) 克隆 SVG，把 viewBox 收窄到裁切框 */
+  const svg=src.cloneNode(true);
+  svg.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  svg.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
+  svg.setAttribute('width',CW);svg.setAttribute('height',CH);
+  svg.setAttribute('viewBox',cx0+' '+cy0+' '+cw+' '+ch);
+  svg.setAttribute('preserveAspectRatio','xMidYMid slice');
+  const cs=getComputedStyle($('prev')).color;
+  const st=document.createElementNS('http://www.w3.org/2000/svg','style');
+  st.textContent='*{color:'+cs+';font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}';
+  svg.insertBefore(st,svg.firstChild);
+  /* 4) 裁切星野：先剔除骑在裁切边上的星点（否则会被切出半颗），再按面积补足。
+     星野可能在 <g fill-opacity> 里成组（裸 circle），也可能直接是 <use>，两者都按位置判断。 */
+  const bgG=svg.querySelector('g[data-bg]');
+  if(bgG&&W>0){
+    const boxes=[bgG].concat([].slice.call(bgG.querySelectorAll('g')));
+    const pos=el=>el.tagName.toLowerCase()==='use'
+      ?[+el.getAttribute('x'),+el.getAttribute('y')]
+      :[+el.getAttribute('cx'),+el.getAttribute('cy')];
+    boxes.forEach(function(box){
+      [].slice.call(box.children).forEach(function(el){
+        const t=el.tagName.toLowerCase();
+        if(t!=='circle'&&t!=='use')return;
+        const p=pos(el);
+        if(!isFinite(p[0])||!isFinite(p[1]))return;
+        const r=(t==='use'?3:+el.getAttribute('r')||0);
+        if(p[0]-r<cx0||p[0]+r>cx0+cw||p[1]-r<cy0||p[1]+r>cy0+ch)box.removeChild(el);
+      });
+    });
+    /* 按面积比例补点：从现有星点里随机取样复制 */
+    const all=[];
+    boxes.forEach(function(box){[].slice.call(box.children).forEach(function(el){
+      const t=el.tagName.toLowerCase();if(t==='circle'||t==='use')all.push([box,el]);
+    });});
+    const areaKeep=(cw*ch)/(W*H);
+    const need=Math.round(all.length/Math.max(areaKeep,0.15))-all.length;
+    if(all.length&&need>0){
+      const seed=mulberry32(Math.round(cx0*131+cw*17+all.length*7));
+      for(let i=0;i<need;i++){
+        const [box,src2]=all[Math.floor(seed()*all.length)];
+        const nc=src2.cloneNode(false);
+        const t=nc.tagName.toLowerCase();
+        const m=(t==='use'?3:(+nc.getAttribute('r')||1))+1;
+        const nx=(cx0+m+seed()*(Math.max(2,cw-2*m))).toFixed(1);
+        const ny=(cy0+m+seed()*(Math.max(2,ch-2*m))).toFixed(1);
+        if(t==='use'){nc.setAttribute('x',nx);nc.setAttribute('y',ny);}
+        else{nc.setAttribute('cx',nx);nc.setAttribute('cy',ny);}
+        box.appendChild(nc);
+      }
+    }
+  }
+  const str='<?xml version="1.0" encoding="UTF-8"?>'+new XMLSerializer().serializeToString(svg);
+  return {s:str,CW,CH,vb:[cx0,cy0,cw,ch]};
+}
+function savePng(){
+  const d=pngPreview();if(!d)return;
+  const btn=$('pngBtn');btn.textContent='生成中…';btn.disabled=true;
+  const img=new Image();
+  img.onload=function(){
+    const cv=document.createElement('canvas');cv.width=d.CW;cv.height=d.CH;
+    const ctx=cv.getContext('2d');
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+    if(!window.pngTransparent){
+      const gr=ctx.createLinearGradient(0,0,d.CW,d.CH);
+      gr.addColorStop(0,'#05070D');gr.addColorStop(1,'#0B1120');
+      ctx.fillStyle=gr;ctx.fillRect(0,0,d.CW,d.CH);
+    }
+    /* 原尺寸贴图：SVG 已按目标像素渲染，此处不再放大 */
+    ctx.drawImage(img,0,0,d.CW,d.CH);
+    const name='星座进度条-'+CONS[cur].name+'-'+(+$('pct').value)+'%'+(window.pngTransparent?'-透明':'')+'.png';
+    cv.toBlob(function(blob){
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);a.download=name;
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+      btn.disabled=false;
+      btn.textContent='✓ 已保存 '+d.CW+'×'+d.CH;
+      setTimeout(()=>{btn.textContent='保存预览图 PNG';},2000);
+    },'image/png');
+  };
+  img.onerror=function(){
+    btn.disabled=false;
+    btn.textContent='⚠️ 导出失败';
+    setTimeout(()=>{btn.textContent='保存预览图 PNG';},1600);
+  };
+  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(d.s);
+}
+window.savePng=savePng;
+$('pngBtn').onclick=savePng;
+
+$('pngBgBtn').onclick=()=>{
+  window.pngTransparent=!window.pngTransparent;
+  $('pngBgBtn').textContent=window.pngTransparent?'✓ 透明背景':'透明背景';
+  $('pngBgBtn').style.color=window.pngTransparent?'#8FD0FF':'#C6CCDA';
+  $('pngBgBtn').style.borderColor=window.pngTransparent?'#4A90D9':'#2A3140';
+};
+/* 启动 */
+var h=document.getElementById('nojs');if(h)h.style.display='none';
+renderTabs();renderGrid();build();
+;window.__blk=(window.__blk||0)+1;}catch(e){var b=document.getElementById("errbox");b.style.display="block";b.textContent="⚠️ 初始化错误 [build]: "+e.message;}</script>
+<script>
+/* 启动自检：脚本被预览环境拦截时，给出明确提示而不是白屏 */
+document.addEventListener('DOMContentLoaded',function(){
+  try{
+    var n=window.__blk||0;
+    if(n<5){
+      var b=document.getElementById('errbox');
+      b.style.display='block';
+      b.textContent='当前预览环境未执行网页脚本（已加载 '+n+'/5）。请点右上角「分享 → Safari」打开本文件，功能完全正常。';
+    }
+  }catch(e){}
+});
+</script>
+<div id="credit">制作者旧林.（小红书：946516033）分享<br>星座进度条生成器<svg class="no" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2"/><path d="M5.5 5.5l13 13"/></svg>二传 <svg class="no" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2"/><path d="M5.5 5.5l13 13"/></svg>二改 <svg class="no" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2"/><path d="M5.5 5.5l13 13"/></svg>商用</div>
+</body>
+<!-- v4-fixed --></html>
