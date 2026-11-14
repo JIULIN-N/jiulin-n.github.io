@@ -929,6 +929,7 @@ button.crumb:hover{background:var(--bg-2);color:var(--text-2)}
 .subf .cnt.zero{background:var(--bg-3);color:var(--text-3)}
 .subf .fx{display:grid;place-items:center;width:20px;height:20px;border-radius:999px;color:var(--text-3);cursor:pointer}
 .subf .fx:hover{background:var(--bg-3);color:var(--danger)}
+.subf .fx[data-fold-move]:hover{background:var(--brand-soft);color:var(--brand)}
 .subf.organizing{border-style:solid;padding-left:9px}
 .subf-empty{font-size:12px;color:var(--text-3);padding:6px 2px}
 .subf.dragging{opacity:.35}
@@ -1056,6 +1057,22 @@ body.selecting .pill .more{display:none}
 @media (hover:hover) and (pointer:fine){.btn-ghost:hover{background:var(--bg-3);color:var(--text)}}
 .btn-ghost:active{transform:scale(.97);background:var(--bg-3);color:var(--text)}
 .btn-ghost svg{width:16px;height:16px}
+/* 移动弹层：每个含子文件夹的文件夹行右侧自带展开 / 收起按钮 */
+.mvrow{position:relative;width:100%}
+.mvrow>.btn-ghost{width:100%}
+.mvrow>.btn-ghost.has-toggle{padding-right:62px}
+/* 主文件夹是亮色卡片；子 / 孙文件夹略淡一档，展开后不会和主文件夹混在一起 */
+.mvrow.mv-root>.btn-ghost{background:var(--bg-2);border-color:var(--line-2);color:var(--text)}
+.mvrow.mv-sub>.btn-ghost{background:color-mix(in srgb,var(--bg-2) 55%,var(--bg-3));border-color:var(--line);color:var(--text-2)}
+.mvrow.mv-root>.btn-ghost:active,.mvrow.mv-sub>.btn-ghost:active{background:var(--bg-3);color:var(--text)}
+.mvrow-toggle{position:absolute;right:9px;top:50%;transform:translateY(-50%);z-index:1;
+  width:40px;min-width:40px;height:32px;padding:0;border-radius:999px;
+  border:1px solid var(--line);background:var(--bg-2);color:var(--text-3);
+  font-family:inherit;font-size:14px;font-weight:700;line-height:1;
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;white-space:nowrap}
+.mvrow-toggle .arw{font-size:15px;line-height:1}
+.mvrow-toggle.on{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 35%,transparent);background:var(--brand-soft)}
+.mvrow-toggle:active{transform:translateY(-50%) scale(.93)}
 
 /* ============ 查看器 ============ */
 .viewer{position:fixed;inset:0;z-index:75;background:var(--bg-2);display:none;flex-direction:column}
@@ -2107,6 +2124,7 @@ function renderFolderRow(){
       ?(fi>0?'<span class="fx" data-fold-l="'+f.id+'" title="左移"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg></span>':"")
        +(fi<n-1?'<span class="fx" data-fold-r="'+f.id+'" title="右移"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg></span>':"")
        +'<span class="fx" data-fold-del="'+f.id+'" title="删除文件夹"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span>'
+       +'<span class="fx" data-fold-move="'+f.id+'" title="移到其他文件夹（可变成子文件夹）"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 10v5m0 0-2-2m2 2 2-2"/></svg></span>'
       :"";
     html+='<button class="fchip selable'+(state.folder===f.id?" on":"")+(state.folderEdit?" organizing":"")+(selFolds[f.id]?" selected":"")+'" data-fold="'+f.id+'">'+
       selBitsFold(f.id)+
@@ -2143,6 +2161,7 @@ function subRowHTML(){
       ?(i>0?'<span class="fx" data-fold-l="'+f.id+'" title="左移">'+larr+'</span>':"")
        +(i<subs.length-1?'<span class="fx" data-fold-r="'+f.id+'" title="右移">'+rarr+'</span>':"")
        +'<span class="fx" data-fold-del="'+f.id+'" title="删除子文件夹">'+xarr+'</span>'
+       +'<span class="fx" data-fold-move="'+f.id+'" title="移到其他文件夹 / 移出为顶层"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 10v5m0 0-2-2m2 2 2-2"/></svg></span>'
       :"";
     html+='<button class="subf'+(state.folderEdit?" organizing":"")+(selFolds[f.id]?" selected":"")+'" data-fold="'+f.id+'">'+
       selBitsFold(f.id)+ficon+esc(f.name)+'<span class="cnt'+(subCount(f.id)?"":" zero")+'">'+subCount(f.id)+'</span>'+ctrls+'</button>';
@@ -4204,7 +4223,7 @@ function showHelp(){
     '<ul><li>卡片右上角 <b>⋯</b>：重命名、<b>置顶</b>、移动到文件夹、<b>导出文件</b>（单个工具导出 .html / 进度条 .svg）、删除；置顶的条目会排到最前面，主页面、我的工具、进度条库、图标库、星标页都一样；</li>'+
     '<li>顶栏 <b>⚙ 设置图标</b>：使用说明、✉ 更新通知信箱都收在里面；还可以分别开关「我的工具 / 进度条库 / 图标库」三个入口；</li>'+
     '<li>顶部搜索框可按<b>名称、标签、分组、网址、类型</b>筛选（也能搜到「我的工具」里的分组标签）；搜索时每张卡片会标出<b>保存途径</b>（我的工具 / 文件夹 / 未分类），一眼分清；主页面搜索也会列出<b>盒中盒里</b>匹配的文件，点一下打开盒子并自动筛出它们；点灰色标签可直接编辑标签；编辑工具的「标签」用逗号分隔可写<b>多个，全部显示、不再限制数量</b>；主页面 / 我的工具 / 进度条库 / 星标页各视图都会显示自定义标签，进度条库 / 星标页的搜索框也能按<b>名称 / 标签 / 备注 / 分组</b>筛选；</li>'+
-    '<li><b>「全部 / 已打包 / 链接」筛选 + 文件夹归类</b>，工具多也不乱；我的工具 / 进度条库 / 图标库三个入口在文件夹行最前面，不与其他文件混在一起；</li>'+
+    '<li><b>「全部 / 已打包 / 链接」筛选 + 文件夹归类</b>，工具多也不乱；我的工具 / 进度条库 / 图标库三个入口在文件夹行最前面，不与其他文件混在一起；<b>移动弹层默认只列主文件夹</b>，含子文件夹的主文件夹右侧会带一个「▸」小按钮，点它才展开自己的子文件夹（没有子文件夹的不显示按钮），且按「主文件夹 → 它自己的子文件夹」缩进排好，不会散在列表末尾；<b>整理</b>状态下主文件夹上的「移入」小按钮，可把它直接移到别的主文件夹里变成子文件夹（也可多选勾选主文件夹后点「移动到…」）；</li>'+
     '<li>多选后点「导出」：可单独导出多个文件，或打包成一个迷你收纳盒 HTML（再导入时可选拆分或变成盒中盒）；</li>'+
     '<li>卡片若出现橙色<b>“缺内容”</b>标签，表示该工具的正文不在当前文件里，重新导入一次即可；</li>'+
     '<li>各库工具行的<b>漏斗</b>可展开全部分组、把常用分组置顶，点「编辑」还能重命名 / 删除 / 拖动排序，点「＋ 新建分组」可直接建空分组；<b>视图按钮</b>循环切换排列方式（进度条库 / 星标页可在预览网格 / 单行列表 / 三列 / 流动胶囊之间切换，流动胶囊宽度随文字走）；</li><li><b>整理排序</b>：我的工具 / 进度条库 / 图标库 / 盒中盒工具行都有「整理」按钮，点开后<b>长按卡片直接拖动</b>就能改顺序，顺序会保存下来，再点一次「整理」退出；主页面的整理按钮用法一样；</li>'+
@@ -4387,6 +4406,8 @@ document.addEventListener("click",function(e){
   if(fdx){showDelFolder(fdx.getAttribute("data-fold-del"));return}
   var fdn=t.closest("[data-fold-new]");
   if(fdn){showNewFolder();return}
+  var fdm=t.closest("[data-fold-move]");
+  if(fdm){showFolderMoveSheet(fdm.getAttribute("data-fold-move"));return}
   var fd=t.closest("[data-fold]");
   if(fd){
     var fvid=fd.getAttribute("data-fold");
@@ -4423,8 +4444,22 @@ if(t.closest('[data-act="exp-pack-box"]')){doSelExportPack();return}
   if(ee){extExportEach(ee.getAttribute("data-scope")||"all");return}
   var ep=t.closest('[data-act="esel-pack"]');
   if(ep){extExportPack(ep.getAttribute("data-scope")||"all");return}
+  var mtg=t.closest("[data-mv-toggle]");
+  if(mtg){
+    var mid=mtg.getAttribute("data-mv-toggle");
+    if(moveOpen[mid])delete moveOpen[mid];else moveOpen[mid]=1;
+    if(moveCtx&&moveCtx.type==="folder")showFolderMoveSheet(moveCtx.fid,true);
+    else showMoveSheet(true);
+    return;
+  }
   var mvb=t.closest("[data-move-to]");
-  if(mvb){closeSheet();moveToFolder(mvb.getAttribute("data-move-to"));return}
+  if(mvb){
+    var mto=mvb.getAttribute("data-move-to"),mc=moveCtx;
+    closeSheet();
+    if(mc&&mc.type==="folder")moveOneFolderTo(mc.fid,mto);else moveToFolder(mto);
+    moveCtx=null;
+    return;
+  }
   var cl=t.closest('[data-act="copy-link"]');
   if(cl){
     var u1=cl.getAttribute("data-url");
@@ -4980,34 +5015,95 @@ function confirmDelFolder(fid){
   if(state.folder===fid)state.folder=pp||"";
   save();render();closeSheet();toast("文件夹已删除");
 }
-function showMoveSheet(){
+/* ---------------------- 移动：目标文件夹列表 ---------------------- */
+/* 树形顺序：主文件夹 → 它自己的子文件夹；每个文件夹默认折叠，只有含子文件夹的行右侧才有展开按钮 */
+var moveOpen={}, moveCtx=null;
+function moveBadSet(fidList){
+  var bad={};
+  (fidList||[]).forEach(function(fid){bad[fid]=1;descendantFolderIds(fid).forEach(function(d){bad[d]=1})});
+  return bad;
+}
+function moveTreeRows(all){
+  var byP={},ids={};
+  all.forEach(function(f){ids[f.id]=1});
+  all.forEach(function(f){
+    var p=f.p&&ids[f.p]?f.p:"";      /* 父被排除或不存在时按主文件夹显示，避免子文件夹消失 */
+    (byP[p]=byP[p]||[]).push(f);
+  });
+  var roots=byP[""]||[],rows=[];
+  function walk(list,d){
+    list.forEach(function(f){
+      var kids=byP[f.id]||[];
+      rows.push({f:f,d:d,kids:kids.length,open:!!moveOpen[f.id]});
+      if(moveOpen[f.id])walk(kids,d+1);
+    });
+  }
+  walk(roots,0);
+  return {rows:rows,subs:all.length-roots.length};
+}
+function moveTargetsHTML(bad,topLabel){
+  var all=folders().filter(function(f){return !bad[f.id]});
+  var t=moveTreeRows(all);
+  return '<div style="display:flex;flex-direction:column;gap:8px">'+
+    '<button class="btn-ghost" style="height:46px;justify-content:center" data-move-to="">'+(topLabel||"未分类（移出文件夹）")+'</button>'+
+    t.rows.map(function(r){
+      var tg=r.kids
+        ?'<button class="mvrow-toggle'+(r.open?" on":"")+'" data-mv-toggle="'+r.f.id+'" title="'+(r.open?"收起":"展开")+'子文件夹" aria-label="'+(r.open?"收起":"展开")+'子文件夹"><span class="arw">'+(r.open?"▾":"▸")+'</span></button>'
+        :"";
+      return '<div class="mvrow '+(r.d===0?"mv-root":"mv-sub")+'">'+
+        '<button class="btn-ghost'+(tg?" has-toggle":"")+'" style="height:46px;justify-content:flex-start;padding-left:'+(16+r.d*18)+'px" data-move-to="'+r.f.id+'">'+
+        (r.d?'<span style="color:var(--text-3);margin-right:6px">└</span>':"")+esc(r.f.name)+'</button>'+tg+'</div>';
+    }).join("")+'</div>';
+}
+function showMoveSheet(keep){
   var n=selCount();
   if(!n){toast("先勾选要移动的项目");return}
-  /* 目标里排除已选中的文件夹及其子文件夹（不能移进自己） */
-  var bad={};
-  Object.keys(selFolds).forEach(function(fid){bad[fid]=1;descendantFolderIds(fid).forEach(function(d){bad[d]=1})});
-  var body='<div style="display:flex;flex-direction:column;gap:8px">'+
-    '<button class="btn-ghost" style="height:46px;justify-content:center" data-move-to="">未分类（移出文件夹）</button>'+
-    folders().filter(function(f){return !bad[f.id]}).map(function(f){
-      var d=folderDepth(f.id);
-      return '<button class="btn-ghost" style="height:46px;justify-content:flex-start;padding-left:'+(16+d*18)+'px" data-move-to="'+f.id+'">'+
-        (d?'<span style="color:var(--text-3);margin-right:2px">└</span>':"")+esc(f.name)+'</button>';
-    }).join("")+
-    '</div><p class="hint">'+(Object.keys(selFolds).length?'勾选的文件夹会整包移动，里面的文件跟着走。':'')+'想把它们放进新文件夹？先取消，去顶部「新建文件夹」。</p>';
+  var sc=keep&&$("#sheetBody")?$("#sheetBody").scrollTop:0;
+  if(!keep)moveOpen={};
+  moveCtx={type:"sel"};
+  var folds=Object.keys(selFolds);
+  var body=moveTargetsHTML(moveBadSet(folds))+
+    '<p class="hint">带「▸」的文件夹，点它右侧的小按钮即可展开子文件夹；'+
+    (folds.length?'勾选的文件夹会整包移动；移到某个主文件夹里，它就变成那个主文件夹的子文件夹。':'')+
+    '想把它们放进新文件夹？先取消，去顶部「新建文件夹」。</p>';
   openSheet("移动 "+n+" 项到…",body,
     '<button class="btn-ghost" data-act="sheet-cancel">取消</button>');
+  if(keep)$("#sheetBody").scrollTop=sc;
+}
+/* 整理模式：单个主文件夹直接移到别的主文件夹里，变成它的子文件夹 */
+function showFolderMoveSheet(fid,keep){
+  var f=folders().find(function(x){return x.id===fid});if(!f)return;
+  var sc=keep&&$("#sheetBody")?$("#sheetBody").scrollTop:0;
+  if(!keep)moveOpen={};
+  moveCtx={type:"folder",fid:fid};
+  var body=moveTargetsHTML(moveBadSet([fid]),"移出为顶层文件夹")+
+    '<p class="hint">带「▸」的文件夹，点它右侧的小按钮即可展开子文件夹；选一个主文件夹，「'+esc(f.name)+'」就会变成它的子文件夹，里面的工具和子文件夹一起跟着走；选最上面一项则移出为顶层。</p>';
+  openSheet("移动文件夹「"+esc(f.name)+"」",body,
+    '<button class="btn-ghost" data-act="sheet-cancel">取消</button>');
+  if(keep)$("#sheetBody").scrollTop=sc;
+}
+function moveOneFolderTo(fid,to){
+  var f=folders().find(function(x){return x.id===fid});if(!f)return;
+  var bad=moveBadSet([fid]);
+  if(to&&bad[to]){toast("不能移到自己或它的子文件夹里");return}
+  f.p=to||null;
+  save();render();
+  toast(to?("已把「"+f.name+"」移入「"+folderName(to)+"」"):("已把「"+f.name+"」移出为顶层文件夹"));
 }
 function moveToFolder(fid){
+  var folds=Object.keys(selFolds);
+  var bad=moveBadSet(folds);
+  if(fid&&bad[fid]){toast("不能移到自己或它的子文件夹里");return}
   Object.keys(selSet).forEach(function(id){
     var it=DB.items.find(function(x){return x.id===id});
     if(it)it.folder=fid;
   });
-  Object.keys(selFolds).forEach(function(f){
+  folds.forEach(function(f){
     var fo=folders().find(function(x){return x.id===f});
     if(fo)fo.p=fid||null;
   });
   save();exitSelect();
-  toast(fid?("已移入「"+folderName(fid)+"」"):"已移出文件夹");
+  toast(fid?("已移入「"+folderName(fid)+"」"+(folds.length?"（"+folds.length+" 个文件夹已变成子文件夹）":"")):"已移出文件夹");
 }
 
 /* ---------------------- 键盘遮挡适配 ---------------------- */
@@ -5678,7 +5774,7 @@ setTimeout(function(){
 /* 站点通知：最新一条弹一次，所有版本更新通知存档在顶栏 ✉ 信件图标里随时翻看 */
 var NOTICES=[
  {id:"b1114a",title:"b1114a 版本更新通知",date:"11月14日",body:
-  '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 2 2 3.5-4"/><rect x="11" y="4" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 13 2 2 3.5-4"/><rect x="11" y="11" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 20 2 2 3.5-4"/><rect x="11" y="18" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/></svg><div><b>子文件夹支持多选：</b>主页面点「多选」后，文件夹也能勾选——可整包<b>移动</b>到别的文件夹、<b>导出</b>（按多选文件的方式，自动带上文件夹里全部内容）、加入我的工具或删除。</div></div>'+
+  '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 2 2 3.5-4"/><rect x="11" y="4" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 13 2 2 3.5-4"/><rect x="11" y="11" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 20 2 2 3.5-4"/><rect x="11" y="18" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/></svg><div><b>子文件夹支持多选：</b>主页面点「多选」后，文件夹也能勾选——可整包<b>移动</b>到别的文件夹、<b>导出</b>（按多选文件的方式，自动带上文件夹里全部内容）、加入我的工具或删除。<b>移动弹层</b>现在默认只显示主文件夹，含子文件夹的主文件夹右侧会带一个「▸」小按钮，点它才按父子顺序缩进展开自己的子文件夹（没有子文件夹的不显示按钮）；<b>整理</b>状态下主文件夹上的「移入」按钮，可把它直接移进别的主文件夹变成子文件夹。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="m8.5 12 2 2 5-5"/></svg><div><b>设置新增「查重」：</b>一键找出重复的网址和内容完全相同的文件（盒中盒里的也一起查），显示每个重复项所在的位置（文件夹 / 分组 / 收藏库 / 盒中盒），勾选后一键删除，收藏前可以先清理一遍。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><div><b>导入与导出：</b>点「添加」→「粘贴 / 导入 SVG」或各库的「导入」，会按内容<b>自动识别</b>是进度条还是图标，收进对应的库，认错了在弹层里手动改；<b>可一次选多个 svg / txt 文件</b>批量导入；<b>「我的工具」页的「导入」</b>和主页面「添加」一样，支持 HTML 工具文件（可多选）、粘贴 HTML 源码、收藏网页链接，导入后自动加入「我的工具」，<b>不提供 SVG / TXT 导入</b>。顶栏下载图标导出整个收纳盒备份；各库和主页面多选后点「导出」，可选<b>单独导出</b>（每个项目一个文件）或<b>打包导出</b>（合成一个迷你收纳盒 HTML，能直接打开、也能再导入回来）。网页链接会一起打包，只记录网址。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg><div><b>盒中盒：</b>导入备份时选「变成盒中盒」，整包会变成一个独立条目，打开后里面的文件单独搜索、分组、多选、导出，不影响外面的收纳盒。盒中盒、我的工具、进度条库、图标库的操作区已统一：漏斗筛选 / 多选 / 导出 / 视图 / 分组标签 / 搜索栏都在同一行。</div></div>'+
