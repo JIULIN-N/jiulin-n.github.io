@@ -3597,6 +3597,7 @@ function showBackupChoice(){
 }
 function doBundleImport(){
   var groups={};
+  var mineFlag=importToMine();
   pending.forEach(function(r){
     if(!r.boxItem)return;
     var k=String((r.file&&r.file.name)||"备份").replace(/\.html?$/i,"")||"备份";
@@ -3608,7 +3609,7 @@ function doBundleImport(){
     var sz=its.reduce(function(a,b){return a+(b.size||0)},0);
     DB.items.push(normalize({
       id:uid(),name:k,desc:"从备份导入的包（"+its.length+" 个内容）",
-      type:"bundle",items:its,size:sz,tags:["盒中盒"],addedAt:Date.now()
+      type:"bundle",items:its,size:sz,tags:["盒中盒"],addedAt:Date.now(),mine:mineFlag
     }));
     n++;
   });
@@ -3648,6 +3649,7 @@ function showImportSheet(){
 }
 function doImport(){
   var mode=$("#impMode")?$("#impMode").value:"embed";
+  var mineFlag=importToMine();
   /* 打包成盒中盒：本次导入的普通文件全部装进一个独立包 */
   if(mode==="bundle"){
     var plain=pending.filter(function(r){return !r.boxItem&&r.html});
@@ -3659,7 +3661,7 @@ function doImport(){
     DB.items.push(normalize({
       id:uid(),name:plain[0].name||"盒中盒",
       desc:"导入打包（"+inner.length+" 个内容）",
-      type:"bundle",items:inner,size:sz,tags:["盒中盒"],addedAt:Date.now()
+      type:"bundle",items:inner,size:sz,tags:["盒中盒"],addedAt:Date.now(),mine:mineFlag
     }));
     pending=[];pendingFolders=[];
     save();render();closeSheet();
@@ -3674,6 +3676,7 @@ function doImport(){
       var exist2=DB.items.find(function(x){return x.name===b.name&&(x.size||0)===(b.size||0)&&x.type===b.type});
       if(exist2)return;
       var copy=Object.assign({},b);delete copy._url;
+      if(mineFlag)copy.mine=true;
       DB.items.push(normalize(copy));
       n++;total+=b.size||0;
       return;
@@ -3683,13 +3686,13 @@ function doImport(){
     if(mode==="embed"){
       DB.items.push(normalize({
         id:uid(),name:r.name,desc:r.desc,type:"embed",html:r.html,size:r.size,
-        addedAt:Date.now(),tags:["导入"],
+        addedAt:Date.now(),tags:["导入"],mine:mineFlag,
       }));
       total+=r.size;
     }else{
       DB.items.push(normalize({
         id:uid(),name:r.name,desc:r.desc,type:"ref",path:r.file.name,size:r.size,
-        addedAt:Date.now(),tags:["链接"],
+        addedAt:Date.now(),tags:["链接"],mine:mineFlag,
       }));
     }
     n++;
@@ -4185,7 +4188,7 @@ function showHelp(){
     '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>'+(webMode?"你现在用的是<b>在线版</b>：数据保存在这个网址的空间里，导入即保存，日常使用零操作。":"当前是<b>本地文件模式</b>：数据存在浏览器缓存里，导入后建议导出单文件固化。")+'</div></div>'+
     '<h2>日常使用（推荐流程）</h2>'+
     '<ul><li><b>入口固定一个</b>：'+(webMode?"用主屏幕图标打开本页（Safari → 分享 → 添加到主屏幕）。注意 Safari 书签版和主屏幕版是两个独立空间，选一个用到底，不要来回切换。":"用 Safari 或 App 预览打开收纳盒文件。")+'</li>'+
-    '<li><b>导入工具</b>：点右上角「添加」→ 选择 .html 文件（也可以粘贴源码、收藏网页链接）。'+(webMode?"导入即自动保存，什么都不用再做。":"导入后按提示导出一次即可固化。")+'</li>'+
+    '<li><b>导入工具</b>：点右上角「添加」→ 选择 .html 文件（也可以粘贴源码、收藏网页链接）；<b>「我的工具」页右上角的「导入」</b>和主页面「添加」一样，支持选择 HTML 工具文件（可多选）、粘贴 HTML 源码、收藏网页链接，导入后自动加入「我的工具」，<b>不提供 SVG / TXT 导入</b>（需要的话用主页面「添加」或进度条库 / 图标库的「导入」）；'+(webMode?"导入即自动保存，什么都不用再做。":"导入后按提示导出一次即可固化。")+'</li>'+
     '<li><b>日常打开</b>：点卡片进入工具，左上角「返回」回列表。</li></ul>'+
     '<h2>导出备份（建议定期做）</h2>'+
     '<ol><li>点顶栏的<b>下载图标</b>（设置图标旁边）→「导出单文件」；</li>'+
@@ -5037,14 +5040,19 @@ $("#btnExport").addEventListener("click",function(){
     '<p class="hint" style="margin-top:10px">换设备或清理数据前，记得先导出一份备份到「文件」App。</p>',
     '<button class="btn-ghost" data-act="sheet-cancel">取消</button>');
 });
+/* 从「我的工具」独立页发起的导入：新工具自动加入「我的工具」（导入期间该页始终处于打开态） */
+function importToMine(){ var p=$("#minePage"); return !!(p&&p.classList.contains("on")); }
 function showAddSheet(){
-  openSheet("添加工具",
-    '<p class="hint" style="margin-top:0">把其他 HTML 工具收进来。推荐方式是选择文件自动打包；如果这个页面运行在 App 内置预览里、文件选择没反应，就用粘贴导入。</p>'+
+  var mine=importToMine();
+  openSheet(mine?"导入到我的工具":"添加工具",
+    '<p class="hint" style="margin-top:0">'+(mine
+      ?"选择 HTML 工具文件（可多选）、粘贴 HTML 源码或收藏网页链接，导入后会直接出现在这里；这里不导入 SVG / TXT（需要的话请用主页面「添加」或进度条库 / 图标库的「导入」）。"
+      :"把其他 HTML 工具收进来。推荐方式是选择文件自动打包；如果这个页面运行在 App 内置预览里、文件选择没反应，就用粘贴导入。")+'</p>'+
     '<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">'+
     '<button class="btn-ghost" style="height:48px;justify-content:center" data-act="pick-file">选择 HTML 文件</button>'+
     '<button class="btn-ghost" style="height:48px;justify-content:center" data-act="paste-import">粘贴 HTML 源码导入</button>'+
     '<button class="btn-ghost" style="height:48px;justify-content:center" data-act="add-link">收藏网页链接</button>'+
-    '<button class="btn-ghost" style="height:48px;justify-content:center" data-act="add-progress">粘贴 / 导入 SVG（自动识别）</button>'+
+    (mine?'':'<button class="btn-ghost" style="height:48px;justify-content:center" data-act="add-progress">粘贴 / 导入 SVG（自动识别）</button>')+
     '</div>'+
     '<div class="note" style="margin-top:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>iPhone/iPad 建议：把收纳盒存到「文件」App，用 Safari 打开后再添加工具，体验最完整。</div></div>',
     '<button class="btn-ghost" data-act="sheet-cancel">取消</button>');
@@ -5074,7 +5082,7 @@ function doLinkAdd(){
   if(exist){toast("这个链接已经收藏过了");return}
   DB.items.push(normalize({
     id:uid(),name:name,desc:url,type:"ref",path:url,
-    tags:[],addedAt:Date.now()
+    tags:[],addedAt:Date.now(),mine:importToMine()
   }));
   save();render();closeSheet();
   toast("已收藏「"+name+"」");
@@ -5434,12 +5442,13 @@ function doPasteImport(){
   var html=$("#paste-html").value;
   if(!html.trim()){toast("请先粘贴 HTML 源码");return}
   var name=$("#paste-name").value.trim()||guessName(html,"粘贴的工具");
+  var mine=importToMine();
   DB.items.push(normalize({
     id:uid(),name:name,desc:guessDesc(html),type:"embed",html:html,
-    size:html.length,tags:["导入"],addedAt:Date.now()
+    size:html.length,tags:["导入"],addedAt:Date.now(),mine:mine
   }));
   save();render();closeSheet();
-  toast("已导入「"+name+"」");
+  toast("已导入「"+name+"」"+(mine?"到我的工具":""));
   setTimeout(function(){
     openSheet("已导入到当前页面",
       '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>为了以后只打开一个文件就能用，建议现在导出一次<strong>自包含 HTML</strong>。浏览器本地缓存容量有限，不导出的话刷新后可能丢失。</div></div>'+
@@ -5473,7 +5482,7 @@ $("#mineGrpMore").addEventListener("click",function(){ showGroupFilter("mine") }
 $("#iconGrpMore").addEventListener("click",function(){ showGroupFilter("icon") });
 $("#boxGrpMore").addEventListener("click",function(){ showGroupFilter("box") });
 $("#pgImport").addEventListener("click",function(){ showSvgImport("") });
-$("#mineImport").addEventListener("click",function(){ showSvgImport("") });
+$("#mineImport").addEventListener("click",function(){ showAddSheet() });
 $("#pgStar").addEventListener("click",openStarPage);
 $("#starBack").addEventListener("click",closeStarPage);
 var pgState={grp:"all",view:"grid",q:""};
@@ -5671,7 +5680,7 @@ var NOTICES=[
  {id:"b1114a",title:"b1114a 版本更新通知",date:"11月14日",body:
   '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 2 2 3.5-4"/><rect x="11" y="4" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 13 2 2 3.5-4"/><rect x="11" y="11" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 20 2 2 3.5-4"/><rect x="11" y="18" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/></svg><div><b>子文件夹支持多选：</b>主页面点「多选」后，文件夹也能勾选——可整包<b>移动</b>到别的文件夹、<b>导出</b>（按多选文件的方式，自动带上文件夹里全部内容）、加入我的工具或删除。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="m8.5 12 2 2 5-5"/></svg><div><b>设置新增「查重」：</b>一键找出重复的网址和内容完全相同的文件（盒中盒里的也一起查），显示每个重复项所在的位置（文件夹 / 分组 / 收藏库 / 盒中盒），勾选后一键删除，收藏前可以先清理一遍。</div></div>'+
-  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><div><b>导入与导出：</b>点「添加」→「粘贴 / 导入 SVG」或各库的「导入」，会按内容<b>自动识别</b>是进度条还是图标，收进对应的库，认错了在弹层里手动改；<b>可一次选多个 svg / txt 文件</b>批量导入。顶栏下载图标导出整个收纳盒备份；各库和主页面多选后点「导出」，可选<b>单独导出</b>（每个项目一个文件）或<b>打包导出</b>（合成一个迷你收纳盒 HTML，能直接打开、也能再导入回来）。网页链接会一起打包，只记录网址。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><div><b>导入与导出：</b>点「添加」→「粘贴 / 导入 SVG」或各库的「导入」，会按内容<b>自动识别</b>是进度条还是图标，收进对应的库，认错了在弹层里手动改；<b>可一次选多个 svg / txt 文件</b>批量导入；<b>「我的工具」页的「导入」</b>和主页面「添加」一样，支持 HTML 工具文件（可多选）、粘贴 HTML 源码、收藏网页链接，导入后自动加入「我的工具」，<b>不提供 SVG / TXT 导入</b>。顶栏下载图标导出整个收纳盒备份；各库和主页面多选后点「导出」，可选<b>单独导出</b>（每个项目一个文件）或<b>打包导出</b>（合成一个迷你收纳盒 HTML，能直接打开、也能再导入回来）。网页链接会一起打包，只记录网址。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg><div><b>盒中盒：</b>导入备份时选「变成盒中盒」，整包会变成一个独立条目，打开后里面的文件单独搜索、分组、多选、导出，不影响外面的收纳盒。盒中盒、我的工具、进度条库、图标库的操作区已统一：漏斗筛选 / 多选 / 导出 / 视图 / 分组标签 / 搜索栏都在同一行。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="3.5" width="4.6" height="4.6" rx="1.2"/><rect x="9.7" y="3.5" width="4.6" height="4.6" rx="1.2"/><rect x="15.9" y="3.5" width="4.6" height="4.6" rx="1.2"/><rect x="3.5" y="9.7" width="4.6" height="4.6" rx="1.2"/><rect x="9.7" y="9.7" width="4.6" height="4.6" rx="1.2"/><rect x="15.9" y="9.7" width="4.6" height="4.6" rx="1.2"/><rect x="3.5" y="15.9" width="4.6" height="4.6" rx="1.2"/><rect x="9.7" y="15.9" width="4.6" height="4.6" rx="1.2"/><rect x="15.9" y="15.9" width="4.6" height="4.6" rx="1.2"/></svg><div><b>排列与分组：</b>点视图按钮循环切换——主页面与我的工具有卡片 / 三列 / 单行列表（右侧标「已打包 / 网页」）/ <b>流动胶囊</b>（宽度随文字走）；进度条库是预览网格 / 单行列表 / 三列 / 流动胶囊。分组多时点<b>漏斗</b>查看全部、把常用分组<b>置顶</b>；点弹层里的「编辑」还能<b>重命名、删除分组、拖动 ⠿ 调整顺序</b>。四个独立页工具行新增「整理」按钮，点开后长按拖动即可调整文件顺序；主页面搜索现在也能按标签 / 分组查找，还能搜到盒中盒里的文件，结果会标出保存途径。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.2 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/></svg><div><b>星标收藏：</b>打开一个进度条，点顶栏 ☆ 收藏，再点一次取消；已收藏的卡片角上会显示一个小星星，没收藏的不显示。进度条库标题后面的 <span class="solidstar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 3.2 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/></svg></span> 进入「星标收藏」页，支持搜索、多选、导出。星星与按钮都跟随主题色。</div></div>'+
