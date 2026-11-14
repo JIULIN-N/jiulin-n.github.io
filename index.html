@@ -1121,7 +1121,7 @@ html[data-theme="dark"] .viewer iframe{background:#12141f}
 .sheet-mask.on{display:flex}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .sheet{
-  width:100%;max-width:560px;max-height:88vh;background:var(--bg);border-radius:28px 28px 0 0;
+  width:100%;max-width:560px;max-height:88vh;max-height:min(88vh,calc(100dvh - 12px));background:var(--bg);border-radius:28px 28px 0 0;
   box-shadow:0 -8px 48px -8px rgba(40,44,110,.35);display:flex;flex-direction:column;
   padding-bottom:calc(8px + var(--safe-b));
   animation:sheetUp .24s cubic-bezier(.2,.8,.2,1);
@@ -1129,7 +1129,7 @@ html[data-theme="dark"] .viewer iframe{background:#12141f}
 @keyframes sheetUp{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
 .sheet-head{display:flex;align-items:center;gap:10px;padding:16px 18px 10px;flex:none}
 .sheet-head h3{margin:0;font-size:16px;font-weight:640;flex:1;letter-spacing:-.01em}
-.sheet-body{padding:0 18px 16px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.sheet-body{padding:0 18px 16px;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0}
 /* 分组筛选流程：弹层顶部固定、高度随内容自然收缩。
    列表 ⇄ 新建 / 重命名 / 删除切换时顶边不动，短表单内容紧贴标题，不再被撑高居中留大片空白；
    表单停在屏幕上半部，键盘弹起时系统也不必把整个页面上推。 */
@@ -1565,7 +1565,7 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
 "use strict";
 
 /* ---------------------- 诊断：版本号 + 错误显示条 ---------------------- */
-var APP_VER="v3",BUILD_ID="b1115a";
+var APP_VER="v3",BUILD_ID="b1115a",VER_LABEL="3.0";/* VER_LABEL：页面对外显示版本号；BUILD_ID 为内部构建标识（版本检测/通知匹配用），保持不变 */
 window.__hbver=APP_VER;
 function showErrBar(msg){
   try{
@@ -2375,7 +2375,7 @@ function renderBody(){
   var hits=(!state.mine&&String(state.q||"").trim())?bundleHits(state.q):[];
   var listTotal=DB.items.filter(function(x){return x.type!=="progress"}).length;
   $("#stat").innerHTML=listTotal?('共 <b>'+listTotal+'</b> 个工具'):"";
-  $("#modeTag").textContent = (inFile ? "本地文件" : "网页模式") + " · " + BUILD_ID;
+  $("#modeTag").textContent = (inFile ? "本地文件" : "网页模式") + " · " + VER_LABEL;
   if(!listTotal){
     var hasPg=DB.items.some(function(x){return x.type==="progress"});
     var pre0=crumbsHTML()+subRowHTML();
@@ -2685,8 +2685,8 @@ var gfEdit={};
 function gfSheet(title,bodyHTML,footHTML,headHTML){
   var sh=document.querySelector(".sheet");
   var prevH=sh?sh.getBoundingClientRect().height:0;   /* 切换前的弹层高度 */
-  $("#mask").classList.add("gf-flow");
-  openSheet(title,bodyHTML,footHTML,headHTML);          /* 内容替换后 height 回到 auto */
+  openSheet(title,bodyHTML,footHTML,headHTML);          /* 先按普通弹层复位旧状态 */
+  $("#mask").classList.add("gf-flow");                  /* 分组流程再启用自己的贴顶固定布局 */
   if(!sh)return;
   var mx=parseFloat(window.getComputedStyle(sh).maxHeight)||Math.round(window.innerHeight*0.82);
   var nextH=Math.min(sh.getBoundingClientRect().height||mx,mx);  /* 新内容的自然高度 */
@@ -3567,11 +3567,14 @@ function openSheet(title,bodyHTML,footHTML,headHTML){
   }else if(slot)slot.innerHTML="";
   $("#sheetBody").innerHTML=bodyHTML;
   $("#sheetFoot").innerHTML=footHTML||"";
+  /* 普通弹层一律复位「分组筛选」残留的贴顶布局与写死的高度：
+     gfSheet 会给遮罩加 gf-flow（align-items:flex-start + margin-top）并给 .sheet 写固定 height，
+     同一弹层内换内容时若不清掉，通知 / 信箱 / 使用说明等弹层就会被顶到屏幕上方，
+     内容又撑不满那个固定高度，底部便空出一大块。分组流程会在 openSheet 之后重新加回 gf-flow。 */
+  $("#mask").classList.remove("gf-flow");
   $("#mask").classList.add("on");
   sheetOn=true;
-  /* 高度始终由内容决定：不再把短表单撑到列表的高度，也不再垂直居中留出大片空白；
-     分组流程里弹层顶边由 gf-flow 固定，切换内容时页面不会上下滑动 */
-  if(sh){sh.style.height="";sh.style.minHeight="";sh.classList.remove("stable-short")}
+  if(sh){sh.style.height="";sh.style.minHeight="";sh.style.maxHeight="";sh.classList.remove("stable-short")}
   $("#sheetBody").scrollTop=0;   /* 换内容时弹层内部回到顶部，不继承上一次的滚动位置 */
   // WKWebView 偶发不绘制弹层遮罩：遮罩不可见却拦截全部点击
   setTimeout(forceRepaint,30);
@@ -3583,7 +3586,7 @@ function closeSheet(){
   sheetOn=false;
   if(typeof gfEdit==="object"&&gfEdit)for(var _gk in gfEdit)gfEdit[_gk]=false;  /* 关掉弹层后下次默认回到查看态 */
   var sh=document.querySelector(".sheet");
-  if(sh){sh.style.height="";sh.style.minHeight="";sh.classList.remove("stable-short")}
+  if(sh){sh.style.height="";sh.style.minHeight="";sh.style.maxHeight="";sh.classList.remove("stable-short")}
   /* 先解锁 body，再恢复底层页面滚动位置（主页面用 window 滚动；子页面 window 为 0，恢复无副作用） */
   if(_sheetLockCss){
     var b=document.body,c=_sheetLockCss;
@@ -5929,6 +5932,8 @@ setTimeout(function(){
 },3000);
 /* 站点通知：最新一条弹一次，所有版本更新通知存档在顶栏 ✉ 信件图标里随时翻看 */
 var NOTICES=[
+ {id:"ver3-rename",mailOnly:true,title:"构建号名字修改通知",date:"11月15日",body:
+  '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><div>从 <b>b1115a</b> 版本开始，版本号改为 <b>3.0</b>。</div></div>'},
  {id:"b1115a",title:"b1115a版本更新通知（含b1114a更新内容）",date:"11月15日",body:
   '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 2 2 3.5-4"/><rect x="11" y="4" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 13 2 2 3.5-4"/><rect x="11" y="11" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 20 2 2 3.5-4"/><rect x="11" y="18" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/></svg><div><b>子文件夹支持多选：</b>主页面点「多选」后，文件夹也能勾选——可整包<b>移动</b>到别的文件夹、<b>导出</b>（按多选文件的方式，自动带上文件夹里全部内容）、加入我的工具或删除。<b>移动弹层</b>现在默认只显示主文件夹，含子文件夹的主文件夹右侧会带一个「▸」小按钮，点它才按父子顺序缩进展开自己的子文件夹（没有子文件夹的不显示按钮）；<b>整理</b>状态下主文件夹上的「移入」按钮，可把它直接移进别的主文件夹变成子文件夹。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="m8.5 12 2 2 5-5"/></svg><div><b>设置新增「查重」：</b>一键找出重复的网址和内容完全相同的文件（盒中盒里的也一起查），显示每个重复项所在的位置（文件夹 / 分组 / 收藏库 / 盒中盒），勾选后一键删除，收藏前可以先清理一遍。</div></div>'+
@@ -6103,7 +6108,7 @@ function showNoticeDetail(id){
 function siteNotice(){
   try{ if(localStorage.getItem(NOTICE_KEY)==="read")return }catch(e){}
   /* 只弹当前构建号对应的更新通知；该版本没有配套通知就不弹 */
-  var cur=NOTICES.find(function(n){return String(n.id).toLowerCase()===String(BUILD_ID).toLowerCase()});
+  var cur=NOTICES.find(function(n){return !n.mailOnly&&String(n.id).toLowerCase()===String(BUILD_ID).toLowerCase()});
   if(!cur)return;
   setTimeout(function(){
     openSheet("网站更新通知",cur.body+
