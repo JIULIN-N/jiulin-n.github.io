@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<!--hb:build-b1113a-->
+<!--hb:build-b1115a-->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, interactive-widget=resizes-content">
 <meta name="theme-color" content="#12141f" media="(prefers-color-scheme: dark)">
@@ -609,12 +609,17 @@ html[data-theme="mutedteal"] .logo{
 .gfrow{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}
 .gfrow:last-child{border-bottom:0}
 .gfpick{flex:1;min-width:0;text-align:left;border:0;background:transparent;color:var(--text);font-size:13.5px;font-weight:620;padding:9px 10px;border-radius:9px;cursor:pointer;font-family:inherit}
-.gfpick:hover{background:var(--bg-2)}
+/* 触屏点过一行后 :hover 会粘住，形成一块浅白圆角「选中」底；只在真鼠标设备启用 hover 反馈 */
+@media (hover:hover){.gfpick:hover{background:var(--bg-2)}}
 .gfpick.on{background:var(--brand-soft);color:var(--brand)}
 .gfpick .n{font-size:11px;color:var(--text-3);font-weight:500;margin-left:6px}
 .gfpin{flex:none;min-width:62px;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:999px;background:var(--bg-2);color:var(--text-2);font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;white-space:nowrap}
-.gfpin.on{background:var(--brand-soft);border-color:transparent;color:var(--brand)}
-.gflist{max-height:46vh;overflow:auto;margin:6px 0 2px}
+.gfpin.on{background:var(--brand-soft);border-color:color-mix(in srgb,var(--brand) 45%,transparent);color:var(--brand)}
+.gflist{margin:6px 0 2px}
+/* 已置顶的分组行：品牌浅底 + 左侧色条，和未置顶分组明显区分 */
+.gfrow.gf-pin .gfpick{background:color-mix(in srgb,var(--brand-soft) 78%,var(--bg-2));color:var(--brand);font-weight:700;box-shadow:inset 3px 0 0 0 var(--brand)}
+.gfrow.gf-pin .gfpick .n{color:var(--brand);opacity:.75}
+.gfrow.gfedit .gfpin{min-width:56px;height:28px;padding:0 8px;font-size:11px}
 .extpage-bar{flex:none;display:flex;align-items:center;gap:10px;padding:calc(var(--safe-t) + 8px) 12px 8px;border-bottom:1px solid var(--line);background:var(--bg-2)}
 .extpage-bar h3{flex:1;min-width:0;margin:0;font-size:16.5px;font-weight:680;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .extpage-bar .cnt2{font-size:12px;color:var(--text-3);flex:none}
@@ -1125,6 +1130,22 @@ html[data-theme="dark"] .viewer iframe{background:#12141f}
 .sheet-head{display:flex;align-items:center;gap:10px;padding:16px 18px 10px;flex:none}
 .sheet-head h3{margin:0;font-size:16px;font-weight:640;flex:1;letter-spacing:-.01em}
 .sheet-body{padding:0 18px 16px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+/* 分组筛选流程：弹层顶部固定、高度随内容自然收缩。
+   列表 ⇄ 新建 / 重命名 / 删除切换时顶边不动，短表单内容紧贴标题，不再被撑高居中留大片空白；
+   表单停在屏幕上半部，键盘弹起时系统也不必把整个页面上推。 */
+.sheet-mask.gf-flow{--gf-top:clamp(88px,18vh,168px);align-items:flex-start}
+.sheet-mask.gf-flow>.sheet{
+  margin-top:var(--gf-top);
+  max-height:calc(100vh - var(--gf-top) - 12px);
+  border-radius:22px;
+}
+/* 高度动画期间内容区撑满剩余空间：内容贴顶、底部按钮贴底，不会浮在半空 */
+.sheet-mask.gf-flow>.sheet>.sheet-body{flex:1 1 auto;min-height:0}
+/* 弹层固定头部的操作区（分组流程放「编辑 / 完成」）与固定底部的主操作按钮 */
+#sheetHeadSlot{display:flex;align-items:center;gap:8px;flex:none}
+.sheet-foot .gf-foot-main{margin-right:auto}
+/* 固定底部与可滚动列表之间给一条淡分隔，长列表滚到底时边界更清楚 */
+.sheet-mask.gf-flow>.sheet>.sheet-foot{border-top:1px solid var(--line)}
 .sheet-foot{padding:10px 18px calc(14px + var(--safe-b));display:flex;gap:9px;justify-content:flex-end;flex:none;flex-wrap:wrap}
 .sheet-foot .btn-ghost,.sheet-foot .btn-primary{height:46px}
 .sheet .close{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--text-3)}
@@ -1334,8 +1355,8 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
       <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.3.9-4.5 4.3 1 6.2-5.5-3-5.5 3 1-6.2L3 9.5l6.3-.9Z"/></svg>
     </button>
     <span class="cnt2" id="pgCnt"></span>
-    <button class="iconbtn orgbtn" id="pgOrg" aria-label="整理排序" title="整理：长按拖动改变顺序">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    <button class="iconbtn" id="pgSel" aria-label="多选" title="多选编辑">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 2 2 3.5-4"/><rect x="11" y="4" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 13 2 2 3.5-4"/><rect x="11" y="11" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 20 2 2 3.5-4"/><rect x="11" y="18" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/></svg>
     </button>
     <button class="extbtn" id="pgImport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span>导入</span></button>
   </div>
@@ -1347,8 +1368,8 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
     <button class="iconbtn" id="pgGrpMore" aria-label="展开分组筛选" title="展开分组筛选 / 置顶分组">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4 2v-8Z"/></svg>
     </button>
-    <button class="iconbtn" id="pgSel" aria-label="多选" title="多选编辑">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 2 2 3.5-4"/><rect x="11" y="4" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 13 2 2 3.5-4"/><rect x="11" y="11" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 20 2 2 3.5-4"/><rect x="11" y="18" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/></svg>
+    <button class="iconbtn orgbtn" id="pgOrg" aria-label="整理排序" title="整理：长按拖动改变顺序">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
     </button>
     <button class="iconbtn" id="pgExport" aria-label="导出备份" title="导出 / 备份">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
@@ -1408,8 +1429,8 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
     </button>
     <h3>我的工具</h3>
     <span class="cnt2" id="mineCnt"></span>
-    <button class="iconbtn orgbtn" id="mineOrg" aria-label="整理排序" title="整理：长按拖动改变顺序">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    <button class="iconbtn" id="mineSel" aria-label="多选" title="多选编辑">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 2 2 3.5-4"/><rect x="11" y="4" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 13 2 2 3.5-4"/><rect x="11" y="11" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 20 2 2 3.5-4"/><rect x="11" y="18" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/></svg>
     </button>
     <button class="extbtn" id="mineImport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span>导入</span></button>
   </div>
@@ -1418,8 +1439,8 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
     <button class="iconbtn" id="mineGrpMore" aria-label="展开分组筛选" title="展开分组筛选 / 置顶分组">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4 2v-8Z"/></svg>
     </button>
-    <button class="iconbtn" id="mineSel" aria-label="多选" title="多选编辑">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 2 2 3.5-4"/><rect x="11" y="4" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 13 2 2 3.5-4"/><rect x="11" y="11" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 20 2 2 3.5-4"/><rect x="11" y="18" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/></svg>
+    <button class="iconbtn orgbtn" id="mineOrg" aria-label="整理排序" title="整理：长按拖动改变顺序">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
     </button>
     <button class="iconbtn" id="mineExport" aria-label="导出备份" title="导出 / 备份">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
@@ -1447,8 +1468,8 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
     </button>
     <h3>图标库</h3>
     <span class="cnt2" id="iconCnt"></span>
-    <button class="iconbtn orgbtn" id="iconOrg" aria-label="整理排序" title="整理：长按拖动改变顺序">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    <button class="iconbtn" id="iconSel" aria-label="多选" title="多选编辑">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 2 2 3.5-4"/><rect x="11" y="4" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 13 2 2 3.5-4"/><rect x="11" y="11" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 20 2 2 3.5-4"/><rect x="11" y="18" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/></svg>
     </button>
     <button class="extbtn" id="iconImport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span>导入</span></button>
   </div>
@@ -1460,8 +1481,8 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
     <button class="iconbtn" id="iconGrpMore" aria-label="展开分组筛选" title="展开分组筛选 / 置顶分组">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4 2v-8Z"/></svg>
     </button>
-    <button class="iconbtn" id="iconSel" aria-label="多选" title="多选编辑">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 2 2 3.5-4"/><rect x="11" y="4" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 13 2 2 3.5-4"/><rect x="11" y="11" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 20 2 2 3.5-4"/><rect x="11" y="18" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/></svg>
+    <button class="iconbtn orgbtn" id="iconOrg" aria-label="整理排序" title="整理：长按拖动改变顺序">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
     </button>
     <button class="iconbtn" id="iconExport" aria-label="导出备份" title="导出 / 备份">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
@@ -1478,8 +1499,8 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
     </button>
     <h3 id="boxTitle">盒中盒</h3>
     <span class="cnt2" id="boxCnt"></span>
-    <button class="iconbtn orgbtn" id="boxOrg" aria-label="整理排序" title="整理：长按拖动改变顺序">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    <button class="iconbtn" id="boxSel" aria-label="多选" title="多选编辑">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 2 2 3.5-4"/><rect x="11" y="4" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 13 2 2 3.5-4"/><rect x="11" y="11" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 20 2 2 3.5-4"/><rect x="11" y="18" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/></svg>
     </button>
   </div>
   <div class="pg-tools">
@@ -1487,8 +1508,8 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
     <button class="iconbtn" id="boxGrpMore" aria-label="展开分组筛选" title="展开分组筛选 / 置顶分组">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4 2v-8Z"/></svg>
     </button>
-    <button class="iconbtn" id="boxSel" aria-label="多选" title="多选编辑">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 2 2 3.5-4"/><rect x="11" y="4" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 13 2 2 3.5-4"/><rect x="11" y="11" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 20 2 2 3.5-4"/><rect x="11" y="18" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/></svg>
+    <button class="iconbtn orgbtn" id="boxOrg" aria-label="整理排序" title="整理：长按拖动改变顺序">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
     </button>
     <button class="iconbtn" id="boxExport" aria-label="导出备份" title="导出 / 备份">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
@@ -1515,7 +1536,6 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
   </div>
   <div class="sel-ops">
     <button class="btn-ghost" data-act="sel-all" id="selAllBtn">全选</button>
-    <button class="btn-ghost" data-act="sel-mine">加入我的</button>
     <button class="btn-ghost" data-act="sel-export">导出</button>
     <button class="btn-ghost" data-act="sel-move">移动到…</button>
     <button class="btn-ghost" style="color:var(--danger)" data-act="sel-del">删除</button>
@@ -1530,6 +1550,7 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
   <div class="sel-ops">
     <button class="btn-ghost" data-act="esel-all" id="extSelAllBtn">全选</button>
     <button class="btn-ghost" data-act="esel-unmine" id="extSelMineBtn" style="display:none">移出我的</button>
+    <button class="btn-ghost" data-act="esel-move" id="extSelMoveBtn" style="display:none">移动到…</button>
     <button class="btn-ghost" data-act="esel-export">导出</button>
     <button class="btn-ghost" style="color:var(--danger)" data-act="esel-del">删除</button>
   </div>
@@ -1544,7 +1565,7 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
 "use strict";
 
 /* ---------------------- 诊断：版本号 + 错误显示条 ---------------------- */
-var APP_VER="v3",BUILD_ID="b1114a";
+var APP_VER="v3",BUILD_ID="b1115a";
 window.__hbver=APP_VER;
 function showErrBar(msg){
   try{
@@ -2651,7 +2672,7 @@ function grpChipsHTML(type,cur,attr,page){
     if(Array.isArray(_ex))_ex.forEach(function(g){if(gs.indexOf(g)<0)gs.push(g)});
     gs=groupOrderApply(page,gs);
     var pin=pinnedGroups(page);
-    if(pin){var seen={};gs.forEach(function(g){seen[g]=1});gs=pin.filter(function(g){return seen[g]})}
+    if(pin&&pin.length){var seen={};gs.forEach(function(g){seen[g]=1});gs=pin.filter(function(g){return seen[g]})}
   }
   var h='<button role="tab" data-'+attr+'="all" aria-selected="'+(cur==="all")+'">全部</button>';
   gs.forEach(function(g){ h+='<button role="tab" data-'+attr+'="'+esc(g)+'" aria-selected="'+(cur===g)+'">'+esc(g)+'</button>' });
@@ -2660,38 +2681,61 @@ function grpChipsHTML(type,cur,attr,page){
 }
 /* 分组展开筛选弹层：点选筛选 / 置顶 / 编辑（重命名、删除、拖动排序） */
 var gfEdit={};
+/* 分组流程专用弹层：顶部固定、高度随内容收缩，切换时页面不位移 */
+function gfSheet(title,bodyHTML,footHTML,headHTML){
+  var sh=document.querySelector(".sheet");
+  var prevH=sh?sh.getBoundingClientRect().height:0;   /* 切换前的弹层高度 */
+  $("#mask").classList.add("gf-flow");
+  openSheet(title,bodyHTML,footHTML,headHTML);          /* 内容替换后 height 回到 auto */
+  if(!sh)return;
+  var mx=parseFloat(window.getComputedStyle(sh).maxHeight)||Math.round(window.innerHeight*0.82);
+  var nextH=Math.min(sh.getBoundingClientRect().height||mx,mx);  /* 新内容的自然高度 */
+  sh.style.height=nextH+"px";
+  /* auto 高度无法用 CSS transition，改用显式起终点的动画：列表 ⇄ 表单平滑展开 / 收起，
+     不再出现「添加分组后弹层突然向下划一下」的生硬跳变 */
+  if(prevH>0&&Math.abs(nextH-prevH)>4&&sh.animate){
+    try{sh.animate([{height:prevH+"px"},{height:nextH+"px"}],{duration:240,easing:"cubic-bezier(.2,.8,.2,1)"})}catch(e){}
+  }
+}
 function showGroupFilter(page){
   var edit=!!gfEdit[page];
   var cur=gfGetCur(page),gs=gfGroups(page),pin=pinnedGroups(page);
   var items=gfItems(page);
   var cnt=function(g){return items.filter(function(x){return String(x.pgroup||"").trim()===g}).length};
-  var body='<div class="gfhead"><span class="lbl">'+(edit?'✎ 重命名 · × 删除 · 拖 ⠿ 排序':'点分组名筛选 · 置顶常用分组')+'</span>'+
-    '<button class="gfedit-btn'+(edit?" on":"")+'" data-act="gf-edit" data-gfpage="'+page+'">'+(edit?"完成":"编辑")+'</button></div>';
+  /* 「编辑 / 完成」放弹层固定头部，「＋ 新建分组 / 显示全部分组」放固定底部，
+     分组再多也不会跟着列表滚走；只有 .gflist 内容随 .sheet-body 单层滚动 */
+  var head='<button class="gfedit-btn'+(edit?" on":"")+'" data-act="gf-edit" data-gfpage="'+page+'">'+(edit?"完成":"编辑")+'</button>';
+  var body='<div class="gfhead"><span class="lbl">'+(edit?'✎ 重命名 · × 删除 · 拖 ⠿ 排序 · 置顶':'点分组名筛选 · 编辑里管理置顶')+'</span></div>';
   body+='<div class="gflist" id="gfList" data-gfpage="'+page+'">';
-  var row=function(val,label,extra,canPin,on,isGroup){
+  var row=function(val,label,extra,on,isGroup){
+    /* 默认「全部不置顶」不高亮；真正设置过置顶后才把已置顶行标出来 */
+    var hi=!!pin&&on;
+    /* 「全部」保留选中高亮；单独选中某个分组不留任何浅色选中态 */
+    var onCls=(cur===val&&val==="all")?" on":"";
+    var pinBtn='<button class="gfpin'+(on?" on":"")+'" data-gfpin="'+esc(val)+'" data-gfpage="'+page+'">'+(on?"取消置顶":"置顶")+'</button>';
     if(edit&&isGroup){
-      return '<div class="gfrow gfedit" data-gfname="'+esc(val)+'">'+
+      return '<div class="gfrow gfedit'+(hi?" gf-pin":"")+'" data-gfname="'+esc(val)+'">'+
         '<span class="gfdrag" title="拖动排序">⠿</span>'+
         '<span class="gfpick" style="flex:1">'+esc(label)+(extra?'<span class="n">'+esc(extra)+'</span>':"")+'</span>'+
         '<button class="gfmini" data-act="gf-rename" data-gfpage="'+page+'" data-gfname="'+esc(val)+'" title="重命名">✎</button>'+
         '<button class="gfmini danger" data-act="gf-del" data-gfpage="'+page+'" data-gfname="'+esc(val)+'" title="删除分组">×</button>'+
-        '</div>';
+        pinBtn+'</div>';
     }
-    return '<div class="gfrow">'+
-      '<button class="gfpick'+(cur===val?" on":"")+'" data-gfpick="'+esc(val)+'" data-gfpage="'+page+'">'+esc(label)+(extra?'<span class="n">'+esc(extra)+'</span>':"")+'</button>'+
-      (canPin?'<button class="gfpin'+(on?" on":"")+'" data-gfpin="'+esc(val)+'" data-gfpage="'+page+'">'+(on?"取消置顶":"置顶")+'</button>':"")+
+    return '<div class="gfrow'+(hi?" gf-pin":"")+'">'+
+      '<button class="gfpick'+onCls+'" data-gfpick="'+esc(val)+'" data-gfpage="'+page+'">'+
+      esc(label)+(extra?'<span class="n">'+esc(extra)+'</span>':"")+'</button>'+
       '</div>';
   };
-  body+=row("all","全部","",false,false,false);
+  body+=row("all","全部","",false,false);
   if(!gs.length)body+='<p class="hint" style="padding:10px 4px">还没有分组。在条目的 ⋯ 菜单里点「设置分组」即可创建。</p>';
-  else gs.forEach(function(g){body+=row(g,g,cnt(g)+" 个",true,pin?pin.indexOf(g)>=0:true,true)});
-  body+=row("ug","未分组","",false,false,false);
+  else gs.forEach(function(g){body+=row(g,g,cnt(g)+" 个",pin?pin.indexOf(g)>=0:false,true)});
+  body+=row("ug","未分组","",false,false);
   body+='</div><p class="hint" style="margin-top:10px">'+
-    (edit?'拖动左侧 ⠿ 调整分组顺序；删除分组后，里面的文件会回到「未分组」。':'点分组名直接筛选；点右侧「置顶」把常用分组固定到页面顶部，没置顶的分组仍可在这里查看和筛选。')+'</p>'+
-    (!edit&&pin?'<button class="btn-ghost" style="height:40px;justify-content:center;margin-top:6px" data-act="gf-showall" data-gfpage="'+page+'">恢复显示全部分组</button>':"")+
-    (!edit?'<button class="btn-ghost" style="height:42px;justify-content:center;margin-top:8px;color:var(--brand);font-weight:700" data-act="gf-new" data-gfpage="'+page+'">＋ 新建分组</button>':"");
-  openSheet("分组筛选 · 置顶",body,
-    '<button class="btn-ghost" data-act="gf-close" data-gfpage="'+page+'">关闭</button>');
+    (edit?'拖动左侧 ⠿ 调整顺序；「置顶」把常用分组固定到页面顶部；删除分组后，文件会回到「未分组」。':'点分组名直接筛选；点右上角「编辑」可置顶、重命名、删除分组或调整顺序。已置顶的分组会固定显示在页面顶部。')+'</p>';
+  var foot=(edit?'<button class="btn-ghost gf-foot-main" data-act="gf-showall" data-gfpage="'+page+'">显示全部分组</button>':
+                '<button class="btn-ghost gf-foot-main" style="color:var(--brand);font-weight:700" data-act="gf-new" data-gfpage="'+page+'">＋ 新建分组</button>')+
+           '<button class="btn-ghost" data-act="gf-close" data-gfpage="'+page+'">关闭</button>';
+  gfSheet("分组筛选 · 置顶",body,foot,head);
   if(edit)gfBindDrag(page);
 }
 function gfSetGroup(page,val){
@@ -2700,23 +2744,23 @@ function gfSetGroup(page,val){
 }
 function gfTogglePin(page,g){
   var m=DB.settings.pinnedGroups||(DB.settings.pinnedGroups={});
-  var gs=gfGroups(page),cur=pinnedGroups(page);
-  var arr=cur?cur.slice():gs.slice();
+  var cur=pinnedGroups(page);
+  var arr=cur?cur.slice():[];   /* 默认「全部不置顶」：从空集合开始，点谁置顶谁 */
   var i=arr.indexOf(g);
   if(i>=0)arr.splice(i,1);else arr.push(g);
-  if(arr.length===gs.length&&gs.every(function(x){return arr.indexOf(x)>=0}))delete m[page];
-  else m[page]=arr;
+  m[page]=arr;
   save();gfRerender(page);showGroupFilter(page);
-  toast(pinnedGroups(page)===null||(pinnedGroups(page)||[]).indexOf(g)>=0?"已置顶到页面":"已从页面收起，可在筛选里找到");
+  toast(arr.indexOf(g)>=0?"已置顶到页面":"已从页面收起，可在筛选里找到");
 }
 function gfShowAll(page){
-  var m=DB.settings.pinnedGroups;if(m)delete m[page];
+  var m=DB.settings.pinnedGroups||(DB.settings.pinnedGroups={});
+  m[page]=[];   /* 全部不置顶；空数组不参与分段栏过滤，分组仍全部显示 */
   save();gfRerender(page);showGroupFilter(page);
-  toast("已恢复显示全部分组");
+  toast("已显示全部分组，全部不置顶");
 }
 /* ---- 分组重命名 / 删除 ---- */
 function gfRenameSheet(page,g){
-  openSheet("重命名分组",
+  gfSheet("重命名分组",
     '<div class="field"><label for="gf-newname">分组名称</label>'+
     '<input class="input" id="gf-newname" maxlength="20" value="'+esc(g)+'"></div>'+
     '<p class="hint">改名后，这个分组下的文件、页面上的分组标签都会同步更新。</p>',
@@ -2743,7 +2787,7 @@ function gfRenameGo(page,oldN){
   gfEdit[page]=true;showGroupFilter(page);
 }
 function gfNewSheet(page){
-  openSheet("新建分组",
+  gfSheet("新建分组",
     '<div class="field"><label for="gf-newgrp">分组名称</label>'+
     '<input class="input" id="gf-newgrp" maxlength="20" placeholder="例如：常用"></div>'+
     '<p class="hint">建好后，在文件 / 条目的 ⋯ 菜单里点「设置分组」就能把内容放进去；空分组也会保留在筛选里。</p>',
@@ -2763,7 +2807,7 @@ function gfNewGo(page){
 }
 function gfDeleteSheet(page,g){
   var n=gfItems(page).filter(function(x){return String(x.pgroup||"").trim()===g}).length;
-  openSheet("删除分组「"+esc(g)+"」？",
+  gfSheet("删除分组「"+esc(g)+"」？",
     '<p class="hint" style="margin-top:0">里面的 '+n+' 个文件不会被删除，会回到「未分组」。</p>',
     '<button class="btn-ghost" data-act="gf-back" data-gfpage="'+page+'">取消</button>'+
     '<button class="btn-primary" style="width:auto;padding:0 16px;background:var(--danger);box-shadow:none" data-act="gf-del-go" data-gfpage="'+page+'" data-gfname="'+esc(g)+'">删除分组</button>');
@@ -3248,6 +3292,18 @@ function closePgPage(){ if(extOrgPage==="pg")exitExtOrg(); if(extSelMode==="pg")
 var boxState={view:"grid",grp:"all",q:""};
 function boxItem(bi){return (curBundle&&Array.isArray(curBundle.items))?curBundle.items[bi]:null}
 function boxSyncSize(){ if(curBundle)curBundle.size=(curBundle.items||[]).reduce(function(a,b){return a+(b.size||0)},0) }
+/* 盒中盒里最后一个文件被移出 / 删除后：自动删掉这个空盒子并回到主页面 */
+function boxPruneIfEmpty(){
+  if(!curBundle||!Array.isArray(curBundle.items)||curBundle.items.length)return false;
+  var name=String(curBundle.name||"盒中盒");
+  var i=DB.items.indexOf(curBundle);
+  if(i>=0)DB.items.splice(i,1);
+  save();closeSheet();
+  if(extSelMode==="box")exitExtSel();
+  render();closeBoxPage();
+  toast("「"+name+"」里已经没有文件，已自动删除这个空盒中盒",2600);
+  return true;
+}
 function boxGroupNames(){
   var seen={},out=[];
   (curBundle&&Array.isArray(curBundle.items)?curBundle.items:[]).forEach(function(x){
@@ -3396,7 +3452,9 @@ function showBoxDelete(bi){
 function deleteBoxItem(bi){
   var it=boxItem(bi);if(!it)return;
   curBundle.items.splice(bi,1);
-  boxSyncSize();save();renderBoxPage();render();closeSheet();toast("已删除");
+  boxSyncSize();save();
+  if(boxPruneIfEmpty())return;
+  renderBoxPage();render();closeSheet();toast("已删除");
 }
 function showBoxExport(bi){
   var it=boxItem(bi);if(!it)return;
@@ -3446,6 +3504,9 @@ function dupOutside(it){
     return false;
   });
 }
+/* 移动目标里的「我的工具」按钮（盒中盒单条目移出 / 多选移动 / 主页面多选移动共用） */
+var MINE_STAR='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.3.9-4.5 4.3 1 6.2-5.5-3-5.5 3 1-6.2L3 9.5l6.3-.9Z"/></svg>';
+var MINE_BTN_STYLE='height:46px;justify-content:center;color:var(--brand);border-color:color-mix(in srgb,var(--brand) 32%,transparent)';
 function showBoxMoveOut(bi){
   var it=boxItem(bi);if(!it)return;
   var dup=dupOutside(it);
@@ -3453,6 +3514,7 @@ function showBoxMoveOut(bi){
   if(dup)body+='<div class="note" style="margin-bottom:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg><div>外面（全部文件里）已存在相同条目「<b>'+esc(it.name)+'</b>」'+(isWebLink(it)?"（或网址相同）":"")+'。移出后会有两个一样的文件，确定要继续吗？</div></div>';
   body+='<div style="display:flex;flex-direction:column;gap:8px">'+
     '<button class="btn-ghost" style="height:46px;justify-content:center" data-boxmove-to="">未分类（收纳盒根目录）</button>'+
+    '<button class="btn-ghost" style="'+MINE_BTN_STYLE+'" data-boxmove-mine="1">'+MINE_STAR+'我的工具</button>'+
     folders().map(function(f){
       var d=folderDepth(f.id);
       return '<button class="btn-ghost" style="height:46px;justify-content:flex-start;padding-left:'+(16+d*18)+'px" data-boxmove-to="'+f.id+'">'+
@@ -3463,37 +3525,73 @@ function showBoxMoveOut(bi){
     '<button class="btn-ghost" data-act="sheet-cancel">取消</button>');
   $("#sheetBody").dataset.boxIdx=bi;
 }
-function doBoxMoveOut(fid){
+function doBoxMoveOut(fid,toMine){
   var bi=+($("#sheetBody").dataset.boxIdx||-1);
   var it=boxItem(bi);if(!it)return;
   var copy=normalize(Object.assign({},it));
-  copy.id=uid();copy.folder=fid||"";delete copy._url;
+  copy.id=uid();copy.folder=toMine?"":(fid||"");delete copy._url;
+  if(toMine)copy.mine=1;else delete copy.mine;
   var dup2=dupOutside(it);
   DB.items.push(copy);
   curBundle.items.splice(bi,1);
-  boxSyncSize();save();renderBoxPage();render();closeSheet();
-  toast("已移出到"+(fid?("「"+folderName(fid)+"」"):"未分类")+(dup2?"（注意：外面已有相同文件）":""),dup2?3200:2000);
+  boxSyncSize();save();
+  if(boxPruneIfEmpty())return;
+  renderBoxPage();render();closeSheet();
+  toast("已移出到"+(toMine?"「我的工具」":(fid?("「"+folderName(fid)+"」"):"未分类"))+(dup2?"（注意：外面已有相同文件）":""),dup2?3200:2000);
 }
 
 /* ---------------------- 弹层 ---------------------- */
 var sheetOn=false;
 var _sheetScrollY=0;
-function openSheet(title,bodyHTML,footHTML){
-  /* 首次打开弹层时记录底层页面滚动位置，关闭时恢复，避免 iOS 在文件选择 / 键盘收起后页面跳位 */
-  if(!sheetOn){ var _se=document.scrollingElement||document.documentElement; _sheetScrollY=(_se&&_se.scrollTop)||window.scrollY||0; }
+var _sheetLockCss=null;
+function openSheet(title,bodyHTML,footHTML,headHTML){
+  var wasOn=sheetOn;
+  var sh=document.querySelector(".sheet");
+  /* 首次打开：记下底层滚动位置并把 body 固定住，避免 iOS 键盘弹出 / 收起把页面滚走 */
+  if(!wasOn){
+    var _se=document.scrollingElement||document.documentElement;
+    _sheetScrollY=(_se&&_se.scrollTop)||window.scrollY||0;
+    var b=document.body;
+    _sheetLockCss={position:b.style.position,top:b.style.top,left:b.style.left,right:b.style.right,width:b.style.width,overflow:b.style.overflow};
+    b.style.position="fixed";b.style.left="0";b.style.right="0";b.style.width="100%";
+    b.style.top=(-_sheetScrollY)+"px";b.style.overflow="hidden";
+    document.documentElement.style.overscrollBehavior="none";
+  }
   $("#sheetTitle").textContent=title;
+  /* 标题行右侧的可选操作区：属于弹层固定头部，不随内容滚动 */
+  var hd=document.querySelector(".sheet-head");
+  var slot=hd&&hd.querySelector("#sheetHeadSlot");
+  if(headHTML){
+    if(!slot&&hd){slot=document.createElement("span");slot.id="sheetHeadSlot";hd.insertBefore(slot,$("#sheetClose"));}
+    if(slot)slot.innerHTML=headHTML;
+  }else if(slot)slot.innerHTML="";
   $("#sheetBody").innerHTML=bodyHTML;
   $("#sheetFoot").innerHTML=footHTML||"";
   $("#mask").classList.add("on");
   sheetOn=true;
+  /* 高度始终由内容决定：不再把短表单撑到列表的高度，也不再垂直居中留出大片空白；
+     分组流程里弹层顶边由 gf-flow 固定，切换内容时页面不会上下滑动 */
+  if(sh){sh.style.height="";sh.style.minHeight="";sh.classList.remove("stable-short")}
+  $("#sheetBody").scrollTop=0;   /* 换内容时弹层内部回到顶部，不继承上一次的滚动位置 */
   // WKWebView 偶发不绘制弹层遮罩：遮罩不可见却拦截全部点击
   setTimeout(forceRepaint,30);
   setTimeout(forceRepaint,400);
 }
 function closeSheet(){
   $("#mask").classList.remove("on");
+  $("#mask").classList.remove("gf-flow");
   sheetOn=false;
-  /* 恢复底层页面滚动位置（主页面用 window 滚动；子页面用自身容器，window 为 0，恢复无副作用） */
+  if(typeof gfEdit==="object"&&gfEdit)for(var _gk in gfEdit)gfEdit[_gk]=false;  /* 关掉弹层后下次默认回到查看态 */
+  var sh=document.querySelector(".sheet");
+  if(sh){sh.style.height="";sh.style.minHeight="";sh.classList.remove("stable-short")}
+  /* 先解锁 body，再恢复底层页面滚动位置（主页面用 window 滚动；子页面 window 为 0，恢复无副作用） */
+  if(_sheetLockCss){
+    var b=document.body,c=_sheetLockCss;
+    b.style.position=c.position;b.style.top=c.top;b.style.left=c.left;b.style.right=c.right;
+    b.style.width=c.width;b.style.overflow=c.overflow;
+    document.documentElement.style.overscrollBehavior="";
+    _sheetLockCss=null;
+  }
   try{
     var _se=document.scrollingElement||document.documentElement;
     if(_se)_se.scrollTop=_sheetScrollY;
@@ -3763,6 +3861,11 @@ function buildSelfContained(items){
     var fr=q("#frame");if(fr){fr.removeAttribute("srcdoc");fr.setAttribute("src","about:blank")}
     var vb=q("#vbar");if(vb)vb.style.display="none";
     var vo=q("#btnVOpen");if(vo)vo.style.display="none";
+    /* 运行时注入的 PWA manifest / 苹果图标是 data: 或 blob: 大 URI（本地文件模式下可达数十万字符），
+       不属于模板本身；导出时清掉 href，重新打开导出文件后脚本会再生成，功能不受影响 */
+    var am=q("#app-manifest"),ai=q("#app-icon");
+    if(am)am.removeAttribute("href");
+    if(ai)ai.removeAttribute("href");
     var vn=q("#vName");if(vn)vn.textContent="";
     var pp=q("#pgPage");if(pp)pp.classList.remove("on");
     var bb=q("#boxPage");if(bb)bb.classList.remove("on");
@@ -4214,7 +4317,7 @@ function showHelp(){
     '<li>在系统分享面板选<b>存储到“文件”</b>，存一份 <span class="kbd">收纳盒备份.html</span>；</li>'+
     '<li>已存在同名文件时 iOS 会提示「<b>替换</b>」，点替换即完成更新备份。</li></ol>'+
     '<p class="hint">日常不导出也不影响使用；但换设备、清数据、删图标之前，先确认备份是最新的。</p>'+
-    '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg><div><b>怎么判断备份是否正常：</b>如果导出的备份文件只有 <b>154KB</b> 左右，说明它是<strong>错误文件</strong>（旧缓存版本导出的，里面没有工具内容）。解决方法：先在浏览器里刷新一次网站，再彻底关闭并重开桌面图标后重新导出；仍不行就删除桌面图标、在浏览器重新「添加到主屏幕」。正常的备份应该有几 MB。</div></div>'+
+    '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg><div><b>怎么判断备份是否正常：</b>如果导出的备份文件只有 <b>380KB</b> 左右（基本就是一个空的收纳盒骨架，里面没有工具内容），说明它是<strong>错误文件</strong>（旧缓存版本导出的）。解决方法：先在浏览器里刷新一次网站，再彻底关闭并重开桌面图标后重新导出；仍不行就删除桌面图标、在浏览器重新「添加到主屏幕」。正常的备份会更大，具体取决于你收藏了多少工具。</div></div>'+
     '<h2>换设备 / 数据丢失后恢复</h2>'+
     '<ol><li>打开收纳盒（在线链接或新文件）；</li>'+
     '<li>点「添加」→<b>选择 HTML 文件</b>，选中之前备份的 <span class="kbd">收纳盒备份.html</span>，里面的工具会被识别恢复；</li>'+
@@ -4223,16 +4326,16 @@ function showHelp(){
     '<ul><li>卡片右上角 <b>⋯</b>：重命名、<b>置顶</b>、移动到文件夹、<b>导出文件</b>（单个工具导出 .html / 进度条 .svg）、删除；置顶的条目会排到最前面，主页面、我的工具、进度条库、图标库、星标页都一样；</li>'+
     '<li>顶栏 <b>⚙ 设置图标</b>：使用说明、✉ 更新通知信箱都收在里面；还可以分别开关「我的工具 / 进度条库 / 图标库」三个入口；</li>'+
     '<li>顶部搜索框可按<b>名称、标签、分组、网址、类型</b>筛选（也能搜到「我的工具」里的分组标签）；搜索时每张卡片会标出<b>保存途径</b>（我的工具 / 文件夹 / 未分类），一眼分清；主页面搜索也会列出<b>盒中盒里</b>匹配的文件，点一下打开盒子并自动筛出它们；点灰色标签可直接编辑标签；编辑工具的「标签」用逗号分隔可写<b>多个，全部显示、不再限制数量</b>；主页面 / 我的工具 / 进度条库 / 星标页各视图都会显示自定义标签，进度条库 / 星标页的搜索框也能按<b>名称 / 标签 / 备注 / 分组</b>筛选；</li>'+
-    '<li><b>「全部 / 已打包 / 链接」筛选 + 文件夹归类</b>，工具多也不乱；我的工具 / 进度条库 / 图标库三个入口在文件夹行最前面，不与其他文件混在一起；<b>移动弹层默认只列主文件夹</b>，含子文件夹的主文件夹右侧会带一个「▸」小按钮，点它才展开自己的子文件夹（没有子文件夹的不显示按钮），且按「主文件夹 → 它自己的子文件夹」缩进排好，不会散在列表末尾；<b>整理</b>状态下主文件夹上的「移入」小按钮，可把它直接移到别的主文件夹里变成子文件夹（也可多选勾选主文件夹后点「移动到…」）；</li>'+
+    '<li><b>「全部 / 已打包 / 链接」筛选 + 文件夹归类</b>，工具多也不乱；我的工具 / 进度条库 / 图标库三个入口在文件夹行最前面，不与其他文件混在一起；<b>移动弹层默认只列主文件夹</b>，含子文件夹的主文件夹右侧会带一个「▸」小按钮，点它才展开自己的子文件夹（没有子文件夹的不显示按钮），且按「主文件夹 → 它自己的子文件夹」缩进排好，不会散在列表末尾；<b>整理</b>状态下主文件夹上的「移入」小按钮，可把它直接移到别的主文件夹里变成子文件夹（也可多选勾选主文件夹后点「移动到…」）；移动弹层最上面新增<b>「我的工具」</b>目标，选它可直接加入我的工具，主页面多选栏不再单独放「加入我的」按钮；</li>'+
     '<li>多选后点「导出」：可单独导出多个文件，或打包成一个迷你收纳盒 HTML（再导入时可选拆分或变成盒中盒）；</li>'+
     '<li>卡片若出现橙色<b>“缺内容”</b>标签，表示该工具的正文不在当前文件里，重新导入一次即可；</li>'+
-    '<li>各库工具行的<b>漏斗</b>可展开全部分组、把常用分组置顶，点「编辑」还能重命名 / 删除 / 拖动排序，点「＋ 新建分组」可直接建空分组；<b>视图按钮</b>循环切换排列方式（进度条库 / 星标页可在预览网格 / 单行列表 / 三列 / 流动胶囊之间切换，流动胶囊宽度随文字走）；</li><li><b>整理排序</b>：我的工具 / 进度条库 / 图标库 / 盒中盒工具行都有「整理」按钮，点开后<b>长按卡片直接拖动</b>就能改顺序，顺序会保存下来，再点一次「整理」退出；主页面的整理按钮用法一样；</li>'+
+    '<li>各库工具行的<b>漏斗</b>可展开全部分组、把常用分组置顶，点「编辑」还能重命名 / 删除 / 拖动排序，点「＋ 新建分组」可直接建空分组（弹层高度保持不变，不会上下跳）；<b>视图按钮</b>循环切换排列方式（进度条库 / 星标页可在预览网格 / 单行列表 / 三列 / 流动胶囊之间切换，流动胶囊宽度随文字走）；</li><li><b>整理排序</b>：我的工具 / 进度条库 / 图标库 / 盒中盒工具行都有「整理」按钮，点开后<b>长按卡片直接拖动</b>就能改顺序，顺序会保存下来，再点一次「整理」退出；主页面的整理按钮用法一样；</li>'+
     '<li><b>导入</b>：点「添加」→「粘贴 / 导入 SVG」或选文件（可多选），会按内容自动识别进度条 / 图标并收进对应库；多选时<b>子文件夹也能勾选</b>，移动 / 导出会自动带上文件夹里的全部内容；</li>'+
     '<li>「设置 → 查重」找出重复的网址和内容相同的文件（盒中盒里的也一起查，位置会标出所属盒中盒），核对位置后勾选删除；</li>'+
     '<li>数据保存在浏览器本地：不要清除本站数据、不要删除主屏幕图标。</li></ul>'+
     '<h2>盒中盒与导入导出</h2>'+
     '<ul>'+
-    '<li><b>盒中盒</b>：导入备份时选「变成盒中盒」，整包变成一个独立条目；打开后像普通页面一样搜索、分组、多选、导出，里面的文件不影响外面；主页面搜索和「设置 → 查重」也能查到盒中盒里的文件；</li>'+
+    '<li><b>盒中盒</b>：导入备份时选「变成盒中盒」，整包变成一个独立条目；打开后像普通页面一样搜索、分组、多选、导出，里面的文件不影响外面；多选后点<b>「移动到…」</b>可把选中的文件批量抽出到外面的文件夹或<b>我的工具</b>，单个文件的 ⋯ 菜单里「移出到收纳盒」也能选「我的工具」；<b>最后一个文件被移出或删除后，空盒中盒会自动删除</b>；主页面搜索和「设置 → 查重」也能查到盒中盒里的文件；</li>'+
     '<li><b>单独导出 / 打包导出</b>：多选后点「导出」，单独导出是每个项目各存一个文件；打包导出会合成一个迷你收纳盒 HTML，能直接打开，也能再导入回来（可选拆分或变成盒中盒）；</li>'+
     '<li><b>批量导入</b>：「添加」→「粘贴 / 导入 SVG」可一次选多个 svg / txt，自动识别进度条或图标收进对应库；网页链接导出时只记录网址；</li>'+
     '<li><b>进度条 / 图标库</b>：入口在文件夹行前面，各有独立的视图、分组、搜索；打开进度条点顶栏 ☆ 收藏，单独进度条页「复制源码」旁可直接导出 SVG / TXT；点<b>进度条库标题后面</b>的 <span class="solidstar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 3.2 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/></svg></span> 进星标页集中查看。</li>'+
@@ -4307,8 +4410,10 @@ document.addEventListener("click",function(e){
     showBoxMenu(r3.right-8,r3.bottom+6,+bxm.getAttribute("data-bx"));
     return;
   }
+  var bmm=t.closest("[data-boxmove-mine]");
+  if(bmm){doBoxMoveOut("",true);return}
   var bmv=t.closest("[data-boxmove-to]");
-  if(bmv){doBoxMoveOut(bmv.getAttribute("data-boxmove-to"));return}
+  if(bmv){doBoxMoveOut(bmv.getAttribute("data-boxmove-to"),false);return}
   // 分组弹窗：点已有分组名直接填入输入框
   var sg=t.closest("[data-setgrp]");
   if(sg){var gi=$("#g-name");if(gi)gi.value=sg.getAttribute("data-setgrp");return}
@@ -4431,12 +4536,12 @@ document.addEventListener("click",function(e){
 if(t.closest('[data-act="sel-del"]')){selDelete();return}
 if(t.closest('[data-act="sel-move"]')){showMoveSheet();return}
 if(t.closest('[data-act="sel-export"]')){showSelExport();return}
-if(t.closest('[data-act="sel-mine"]')){selAddToMine();return}
 if(t.closest('[data-act="exp-pack-each"]')){doSelExportEach();return}
 if(t.closest('[data-act="exp-pack-box"]')){doSelExportPack();return}
   if(t.closest('[data-act="esel-exit"]')){exitExtSel();return}
   if(t.closest('[data-act="esel-all"]')){extSelAll();return}
   if(t.closest('[data-act="esel-export"]')){showExtExport();return}
+  if(t.closest('[data-act="esel-move"]')){showBoxSelMoveSheet();return}
   if(t.closest('[data-act="esel-del"]')){extSelDeleteConfirm();return}
   if(t.closest('[data-act="esel-del-go"]')){extSelDeleteGo();return}
   if(t.closest('[data-act="esel-unmine"]')){extSelUnmine();return}
@@ -4449,14 +4554,26 @@ if(t.closest('[data-act="exp-pack-box"]')){doSelExportPack();return}
     var mid=mtg.getAttribute("data-mv-toggle");
     if(moveOpen[mid])delete moveOpen[mid];else moveOpen[mid]=1;
     if(moveCtx&&moveCtx.type==="folder")showFolderMoveSheet(moveCtx.fid,true);
+    else if(moveCtx&&moveCtx.type==="boxsel")showBoxSelMoveSheet(true);
     else showMoveSheet(true);
+    return;
+  }
+  var mmb=t.closest("[data-move-mine]");
+  if(mmb){
+    var mmc=moveCtx;
+    closeSheet();
+    if(mmc&&mmc.type==="boxsel")boxSelMoveTo("",true);
+    else if(mmc&&mmc.type!=="folder"){selAddToMine()}
+    moveCtx=null;
     return;
   }
   var mvb=t.closest("[data-move-to]");
   if(mvb){
     var mto=mvb.getAttribute("data-move-to"),mc=moveCtx;
     closeSheet();
-    if(mc&&mc.type==="folder")moveOneFolderTo(mc.fid,mto);else moveToFolder(mto);
+    if(mc&&mc.type==="folder")moveOneFolderTo(mc.fid,mto);
+    else if(mc&&mc.type==="boxsel")boxSelMoveTo(mto,false);
+    else moveToFolder(mto);
     moveCtx=null;
     return;
   }
@@ -4676,6 +4793,8 @@ function syncExtSelCnt(){
   if(ab)ab.textContent=(n>0&&n===extSelVisibleKeys().length)?"取消全选":"全选";
   var mb=$("#extSelMineBtn");
   if(mb)mb.style.display=extSelMode==="mine"?"":"none";
+  var vb=$("#extSelMoveBtn");
+  if(vb)vb.style.display=extSelMode==="box"?"":"none";
 }
 function extSelToggleKey(key){
   if(extSelSet[key])delete extSelSet[key];else extSelSet[key]=1;
@@ -4683,11 +4802,12 @@ function extSelToggleKey(key){
 }
 function extSelVisibleKeys(){
   var a=[];
-  if(extSelMode==="pg"){document.querySelectorAll("#pgList [data-pg]").forEach(function(el){a.push(el.getAttribute("data-pg"))})}
-  else if(extSelMode==="icon"){document.querySelectorAll("#iconList [data-ic]").forEach(function(el){a.push(el.getAttribute("data-ic"))})}
-  else if(extSelMode==="box"){document.querySelectorAll("#boxList [data-bx]").forEach(function(el){a.push(el.getAttribute("data-bx"))})}
-  else if(extSelMode==="mine"){document.querySelectorAll("#mineList [data-id]").forEach(function(el){a.push(el.getAttribute("data-id"))})}
-  else if(extSelMode==="star"){document.querySelectorAll("#starList [data-pg]").forEach(function(el){a.push(el.getAttribute("data-pg"))})}
+  function add(k){if(a.indexOf(k)<0)a.push(k)}   /* 卡片与「⋯」按钮带同一个 key，去重后再算全选 */
+  if(extSelMode==="pg"){document.querySelectorAll("#pgList [data-pg]").forEach(function(el){add(el.getAttribute("data-pg"))})}
+  else if(extSelMode==="icon"){document.querySelectorAll("#iconList [data-ic]").forEach(function(el){add(el.getAttribute("data-ic"))})}
+  else if(extSelMode==="box"){document.querySelectorAll("#boxList [data-bx]").forEach(function(el){add(el.getAttribute("data-bx"))})}
+  else if(extSelMode==="mine"){document.querySelectorAll("#mineList [data-id]").forEach(function(el){add(el.getAttribute("data-id"))})}
+  else if(extSelMode==="star"){document.querySelectorAll("#starList [data-pg]").forEach(function(el){add(el.getAttribute("data-pg"))})}
   return a;
 }
 function extSelAll(){
@@ -4718,6 +4838,7 @@ function extSelDeleteGo(){
     var idxs=Object.keys(extSelSet).map(Number).sort(function(a,b){return b-a});
     idxs.forEach(function(i){if(curBundle&&curBundle.items&&curBundle.items[i]!=null)curBundle.items.splice(i,1)});
     boxSyncSize();save();
+    if(boxPruneIfEmpty())return;
     var n=idxs.length;extSelSet={};syncExtSelCnt();renderBoxPage();render();closeSheet();
     toast("已删除 "+n+" 个");
     return;
@@ -5041,11 +5162,12 @@ function moveTreeRows(all){
   walk(roots,0);
   return {rows:rows,subs:all.length-roots.length};
 }
-function moveTargetsHTML(bad,topLabel){
+function moveTargetsHTML(bad,topLabel,showMine){
   var all=folders().filter(function(f){return !bad[f.id]});
   var t=moveTreeRows(all);
   return '<div style="display:flex;flex-direction:column;gap:8px">'+
     '<button class="btn-ghost" style="height:46px;justify-content:center" data-move-to="">'+(topLabel||"未分类（移出文件夹）")+'</button>'+
+    (showMine?'<button class="btn-ghost" style="'+MINE_BTN_STYLE+'" data-move-mine="1">'+MINE_STAR+'我的工具</button>':"")+
     t.rows.map(function(r){
       var tg=r.kids
         ?'<button class="mvrow-toggle'+(r.open?" on":"")+'" data-mv-toggle="'+r.f.id+'" title="'+(r.open?"收起":"展开")+'子文件夹" aria-label="'+(r.open?"收起":"展开")+'子文件夹"><span class="arw">'+(r.open?"▾":"▸")+'</span></button>'
@@ -5062,13 +5184,47 @@ function showMoveSheet(keep){
   if(!keep)moveOpen={};
   moveCtx={type:"sel"};
   var folds=Object.keys(selFolds);
-  var body=moveTargetsHTML(moveBadSet(folds))+
-    '<p class="hint">带「▸」的文件夹，点它右侧的小按钮即可展开子文件夹；'+
+  var body=moveTargetsHTML(moveBadSet(folds),"",true)+
+    '<p class="hint">选「我的工具」可直接加入我的工具；带「▸」的文件夹，点它右侧的小按钮即可展开子文件夹；'+
     (folds.length?'勾选的文件夹会整包移动；移到某个主文件夹里，它就变成那个主文件夹的子文件夹。':'')+
     '想把它们放进新文件夹？先取消，去顶部「新建文件夹」。</p>';
   openSheet("移动 "+n+" 项到…",body,
     '<button class="btn-ghost" data-act="sheet-cancel">取消</button>');
   if(keep)$("#sheetBody").scrollTop=sc;
+}
+/* 盒中盒多选：把选中的盒内文件抽出到外面的文件夹 / 我的工具 */
+function showBoxSelMoveSheet(keep){
+  var idxs=Object.keys(extSelSet);
+  if(!idxs.length){toast("先勾选要移动的文件");return}
+  var sc=keep&&$("#sheetBody")?$("#sheetBody").scrollTop:0;
+  if(!keep)moveOpen={};
+  moveCtx={type:"boxsel"};
+  var body=moveTargetsHTML({},"未分类（收纳盒根目录）",true)+
+    '<p class="hint">选中的 '+idxs.length+' 个文件会离开这个盒中盒，变成外面的普通文件；选「我的工具」会直接加入我的工具。带「▸」的文件夹，点它右侧的小按钮可展开子文件夹。</p>';
+  openSheet("移动 "+idxs.length+" 项到…",body,
+    '<button class="btn-ghost" data-act="sheet-cancel">取消</button>');
+  if(keep)$("#sheetBody").scrollTop=sc;
+}
+function boxSelMoveTo(fid,toMine){
+  if(!curBundle||!Array.isArray(curBundle.items)){toast("盒子已关闭");return}
+  var idxs=Object.keys(extSelSet).map(Number)
+    .filter(function(i){return curBundle.items[i]!=null})
+    .sort(function(a,b){return b-a});
+  if(!idxs.length){toast("先勾选要移动的文件");return}
+  var picked=idxs.slice().reverse().map(function(i){return curBundle.items[i]});
+  var n=0;
+  picked.forEach(function(it){
+    var copy=normalize(Object.assign({},it));
+    copy.id=uid();delete copy._url;
+    if(toMine){copy.mine=1;copy.folder=""}
+    else{copy.folder=fid||"";delete copy.mine}
+    DB.items.push(copy);n++;
+  });
+  idxs.forEach(function(i){curBundle.items.splice(i,1)});  /* 倒序删除，索引不会错位 */
+  boxSyncSize();save();
+  if(boxPruneIfEmpty())return;
+  closeSheet();exitExtSel();render();
+  toast("已把 "+n+" 个文件移到"+(toMine?"「我的工具」":(fid?("「"+folderName(fid)+"」"):"未分类")));
 }
 /* 整理模式：单个主文件夹直接移到别的主文件夹里，变成它的子文件夹 */
 function showFolderMoveSheet(fid,keep){
@@ -5773,21 +5929,21 @@ setTimeout(function(){
 },3000);
 /* 站点通知：最新一条弹一次，所有版本更新通知存档在顶栏 ✉ 信件图标里随时翻看 */
 var NOTICES=[
- {id:"b1114a",title:"b1114a 版本更新通知",date:"11月14日",body:
+ {id:"b1115a",title:"b1115a版本更新通知（含b1114a更新内容）",date:"11月15日",body:
   '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 2 2 3.5-4"/><rect x="11" y="4" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 13 2 2 3.5-4"/><rect x="11" y="11" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/><path d="m3 20 2 2 3.5-4"/><rect x="11" y="18" width="10" height="2.4" rx="1.2" fill="currentColor" stroke="none"/></svg><div><b>子文件夹支持多选：</b>主页面点「多选」后，文件夹也能勾选——可整包<b>移动</b>到别的文件夹、<b>导出</b>（按多选文件的方式，自动带上文件夹里全部内容）、加入我的工具或删除。<b>移动弹层</b>现在默认只显示主文件夹，含子文件夹的主文件夹右侧会带一个「▸」小按钮，点它才按父子顺序缩进展开自己的子文件夹（没有子文件夹的不显示按钮）；<b>整理</b>状态下主文件夹上的「移入」按钮，可把它直接移进别的主文件夹变成子文件夹。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="m8.5 12 2 2 5-5"/></svg><div><b>设置新增「查重」：</b>一键找出重复的网址和内容完全相同的文件（盒中盒里的也一起查），显示每个重复项所在的位置（文件夹 / 分组 / 收藏库 / 盒中盒），勾选后一键删除，收藏前可以先清理一遍。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><div><b>导入与导出：</b>点「添加」→「粘贴 / 导入 SVG」或各库的「导入」，会按内容<b>自动识别</b>是进度条还是图标，收进对应的库，认错了在弹层里手动改；<b>可一次选多个 svg / txt 文件</b>批量导入；<b>「我的工具」页的「导入」</b>和主页面「添加」一样，支持 HTML 工具文件（可多选）、粘贴 HTML 源码、收藏网页链接，导入后自动加入「我的工具」，<b>不提供 SVG / TXT 导入</b>。顶栏下载图标导出整个收纳盒备份；各库和主页面多选后点「导出」，可选<b>单独导出</b>（每个项目一个文件）或<b>打包导出</b>（合成一个迷你收纳盒 HTML，能直接打开、也能再导入回来）。网页链接会一起打包，只记录网址。</div></div>'+
-  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg><div><b>盒中盒：</b>导入备份时选「变成盒中盒」，整包会变成一个独立条目，打开后里面的文件单独搜索、分组、多选、导出，不影响外面的收纳盒。盒中盒、我的工具、进度条库、图标库的操作区已统一：漏斗筛选 / 多选 / 导出 / 视图 / 分组标签 / 搜索栏都在同一行。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg><div><b>盒中盒：</b>导入备份时选「变成盒中盒」，整包会变成一个独立条目，打开后里面的文件单独搜索、分组、多选、导出，不影响外面的收纳盒。盒中盒、我的工具、进度条库、图标库的操作区已统一：漏斗筛选 / 整理 / 导出 / 视图 / 分组标签 / 搜索栏都在同一行，<b>多选</b>按钮改到顶栏右侧、<b>整理</b>按钮下移到工具行（两个位置对调）。<b>盒中盒多选现在可以「移动到…」</b>，把选中的文件批量抽出到外面的文件夹或<b>我的工具</b>；单个文件的 ⋯ 菜单「移出到收纳盒」也能选「我的工具」；主页面 / 盒中盒的移动弹层最上面都新增了<b>「我的工具」</b>目标。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="3.5" width="4.6" height="4.6" rx="1.2"/><rect x="9.7" y="3.5" width="4.6" height="4.6" rx="1.2"/><rect x="15.9" y="3.5" width="4.6" height="4.6" rx="1.2"/><rect x="3.5" y="9.7" width="4.6" height="4.6" rx="1.2"/><rect x="9.7" y="9.7" width="4.6" height="4.6" rx="1.2"/><rect x="15.9" y="9.7" width="4.6" height="4.6" rx="1.2"/><rect x="3.5" y="15.9" width="4.6" height="4.6" rx="1.2"/><rect x="9.7" y="15.9" width="4.6" height="4.6" rx="1.2"/><rect x="15.9" y="15.9" width="4.6" height="4.6" rx="1.2"/></svg><div><b>排列与分组：</b>点视图按钮循环切换——主页面与我的工具有卡片 / 三列 / 单行列表（右侧标「已打包 / 网页」）/ <b>流动胶囊</b>（宽度随文字走）；进度条库是预览网格 / 单行列表 / 三列 / 流动胶囊。分组多时点<b>漏斗</b>查看全部、把常用分组<b>置顶</b>；点弹层里的「编辑」还能<b>重命名、删除分组、拖动 ⠿ 调整顺序</b>。四个独立页工具行新增「整理」按钮，点开后长按拖动即可调整文件顺序；主页面搜索现在也能按标签 / 分组查找，还能搜到盒中盒里的文件，结果会标出保存途径。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.2 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/></svg><div><b>星标收藏：</b>打开一个进度条，点顶栏 ☆ 收藏，再点一次取消；已收藏的卡片角上会显示一个小星星，没收藏的不显示。进度条库标题后面的 <span class="solidstar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 3.2 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/></svg></span> 进入「星标收藏」页，支持搜索、多选、导出。星星与按钮都跟随主题色。</div></div>'+
-  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83"/></svg><div><b>其它：</b>「我的工具」也能多选编辑，主页面多选可批量「加入我的」；「设置」里可隐藏卡片标签、开关三个入口；点「设置」→「使用说明」可随时查看提示。</div></div>'},
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83"/></svg><div><b>其它：</b>「我的工具」也能多选编辑，主页面多选在「移动到…」里选「我的工具」即可批量加入；<b>盒中盒清空后自动删除空盒子</b>；「设置」里可隐藏卡片标签、开关三个入口；点「设置」→「使用说明」可随时查看提示。</div></div>'},
  {id:"b1101a",title:"b1101a 版本更新通知",date:"11月1日",body:
   '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div><b>网站修复更新。</b>之前通过「文件」方式导出的存档备份，需要重新导出一次（点顶栏下载图标 →「导出 / 备份」），否则旧备份里没有工具内容，无法用于恢复。你当前的工具和数据不受影响。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg><div><b>检查你的备份：</b>如果导出的备份文件只有 <b>154KB</b> 左右，说明它是<strong>错误文件</strong>（旧缓存版本导出的，里面没有工具内容）。解决方法：先在浏览器里刷新一次网站，再彻底关闭并重开桌面图标后重新导出；仍不行就删除桌面图标、在浏览器重新「添加到主屏幕」。正常的备份应该有几 MB。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 5h5v5M19 5l-8 8M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4"/></svg><div><b>网页链接新打开方式：</b>网页现在会在收纳盒里直接打开（带返回按钮）。如果网页显示空白（该网站禁止内嵌），点顶栏 <b>↗</b> 换新窗口打开，并会提示「已记住：这个网站以后直接在新窗口打开」——之后这个网站都会自动直接跳转，不再白屏。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><div><b>新增整理模式：</b>点文件夹行最前面的 <b>✏️ 小铅笔</b>进入整理。整理状态下：<b>点文件夹名字</b>可以直接重命名；<b>长按拖动</b>可以调整文件夹顺序，也可以拖动下方的工具卡片调整位置；点文件夹上的 <b>×</b> 删除文件夹（里面的工具不会被删）。平时不进整理模式，怎么点都不会误删。</div></div>'}
 ];
-var NOTICE_KEY="hb.notice.v5";
+var NOTICE_KEY="hb.notice.v6";
 function mailUnread(){
   try{ return localStorage.getItem(NOTICE_KEY)!=="read" }catch(e){ return true }
 }
