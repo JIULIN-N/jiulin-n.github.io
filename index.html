@@ -762,7 +762,9 @@ body.esel #mineList .more{display:none}
 .card .meta{padding:16px;display:flex;flex-direction:column;gap:4px;background:var(--bg-2)}
 .card .name{font-size:15.5px;font-weight:680;line-height:1.35;letter-spacing:-.01em;padding-right:26px;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
-.card .desc{font-size:12px;color:var(--text-3);display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+/* 卡片视图备注完整换行显示，不再单行截断；瀑布流会按内容高度重新分配行 span
+   备注在标题下方，不与右上角 ⋯ 同行，无需给它留右内边距（只有标题需要） */
+.card .desc{font-size:12px;line-height:1.4;color:var(--text-3);display:block;-webkit-line-clamp:unset;overflow:visible;white-space:normal;word-break:break-word;overflow-wrap:anywhere}
 .card .tagrow{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}
 .chip{font-size:10.5px;line-height:1;padding:5px 8px;border-radius:999px;background:var(--bg-3);color:var(--text-2);font-weight:600;letter-spacing:.02em}
 .chip.embed{background:var(--brand-soft);color:var(--brand)}
@@ -955,6 +957,28 @@ body.organizing .card,body.organizing .pill,body.organizing .fchip{-webkit-touch
 .drag-ghost{position:fixed;z-index:999;pointer-events:none;opacity:.92;transform:scale(1.03);box-shadow:0 14px 34px -8px rgba(0,0,0,.3)}
 .dragging{opacity:.35}
 .fchip.newf{color:var(--brand)}
+/* ============ 文件夹导航（切换到文件夹导航模式时启用）============ */
+.fnav{display:flex;flex-direction:column;gap:8px;padding:2px 0 10px}
+.fnav-hd{display:flex;flex-direction:column;gap:2px;padding:2px 2px 6px}
+.fnav-hd b{font-size:15px}
+.fnav-hd span{font-size:12px;color:var(--text-3)}
+.fnav-row{display:flex;align-items:center;gap:6px;width:100%;min-height:52px;padding:0 8px 0 14px;border:1px solid var(--line);background:var(--bg-2);border-radius:14px;color:var(--text);font-size:15px;font-weight:620;box-shadow:var(--shadow)}
+.fnav-main{display:flex;align-items:center;gap:10px;flex:1;min-width:0;height:52px;padding:0;background:none;border:0;color:inherit;font:inherit;cursor:pointer;text-align:left}
+.fnav-row svg{width:20px;height:20px;flex:none;color:var(--brand)}
+.fnav-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fnav-sub{flex:none;font-size:11px;color:var(--text-3)}
+.fnav-toggle{flex:none;width:30px;height:30px;display:grid;place-items:center;padding:0;border:1px solid var(--line);background:var(--bg-3);border-radius:999px;color:var(--text-3);font-size:12px;line-height:1;cursor:pointer}
+.fnav-toggle.on{background:var(--brand-soft);border-color:transparent;color:var(--brand)}
+.fnav-unc{background:var(--brand-soft);border-color:transparent}
+.fnav-lv1{margin-left:20px;width:calc(100% - 20px);background:var(--bg-3);border-color:transparent;min-height:46px;font-size:14px}
+.fnav-lv2{margin-left:40px;width:calc(100% - 40px);background:transparent;border-style:dashed;min-height:42px;font-size:13.5px}
+.fnav-lv1 .fnav-main{height:46px}
+.fnav-lv2 .fnav-main{height:42px}
+.fnav-lv1 svg,.fnav-lv2 svg{width:17px;height:17px}
+.fnav-empty{padding:16px;text-align:center;color:var(--text-3);font-size:13px}
+.fnav-acts{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+/* 导航模式：隐藏顶部类型筛选选项行与文件夹行（即「全部选项」） */
+body.homeNav .seg,body.homeNav .folder-wrap{display:none}
 .fchip svg{width:13px;height:13px}
 .orgbtn.on{background:var(--brand-soft);color:var(--brand);border-color:transparent}
 body.extorg .extpage.on #pgList>*,body.extorg .extpage.on #mineList>*,body.extorg .extpage.on #boxList>*,body.extorg .extpage.on #iconList .pgcard{outline:1px dashed color-mix(in srgb,var(--brand) 55%,transparent);outline-offset:2px}
@@ -1565,7 +1589,7 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
 "use strict";
 
 /* ---------------------- 诊断：版本号 + 错误显示条 ---------------------- */
-var APP_VER="v3",BUILD_ID="b1115a",VER_LABEL="3.0";/* VER_LABEL：页面对外显示版本号；BUILD_ID 为内部构建标识（版本检测/通知匹配用），保持不变 */
+var APP_VER="v3",BUILD_ID="b1115a",VER_LABEL="3.1";/* VER_LABEL：页面对外显示版本号；BUILD_ID 为内部构建标识（版本检测/通知匹配用），保持不变 */
 window.__hbver=APP_VER;
 function showErrBar(msg){
   try{
@@ -2157,6 +2181,41 @@ function renderFolderRow(){
   row.innerHTML=html;
   var eb=$("#btnEdit");if(eb)eb.classList.toggle("on",state.folderEdit);
 }
+/* ============ 文件夹导航视图：默认只显示主文件夹，子/孙文件夹点右侧 ▸ 展开 ============ */
+var _FNAV_FOLD='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>';
+var _FNAV_UNC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16"/></svg>';
+var fnavOpen={};   /* 导航树展开状态：默认全部折叠，点右侧 ▸ 逐级展开 */
+function folderNavRow(f,depth){
+  var subs=childFolders(f.id);
+  var open=!!fnavOpen[f.id];
+  var tg=subs.length
+    ?'<button class="fnav-toggle'+(open?" on":"")+'" data-fnav-toggle="'+esc(f.id)+'" title="'+(open?"收起":"展开")+'子文件夹" aria-label="'+(open?"收起":"展开")+'子文件夹">'+(open?"▾":"▸")+'</button>'
+    :"";
+  /* 导航行不显示行尾数字，只保留文件夹名、子文件夹数和展开按钮 */
+  var h='<div class="fnav-row fnav-lv'+Math.min(depth,2)+'">'+
+    '<button class="fnav-main" data-fold="'+esc(f.id)+'">'+_FNAV_FOLD+
+      '<span class="fnav-nm">'+esc(f.name)+'</span>'+
+      (subs.length?'<span class="fnav-sub">'+subs.length+' 个子文件夹</span>':"")+
+      '</button>'+tg+'</div>';
+  if(open)subs.forEach(function(x){h+=folderNavRow(x,depth+1)});
+  return h;
+}
+function folderNavHTML(){
+  var unc=DB.items.filter(function(it){return !it.folder&&!it.mine&&it.type!=="progress"&&it.type!=="icon"}).length;
+  var roots=rootFolders();
+  var h='<div class="fnav">'+
+    '<div class="fnav-hd"><b>文件夹导航</b><span>点文件夹查看里面的工具；带「▸」的可逐级展开子文件夹，默认不展开</span></div>'+
+    /* 未分类里没有工具时直接隐藏这一行 */
+    (unc?'<div class="fnav-row fnav-unc"><button class="fnav-main" data-fold="__none__">'+_FNAV_UNC+
+      '<span class="fnav-nm">未分类</span></button></div>':"");
+  roots.forEach(function(f){h+=folderNavRow(f,0)});
+  if(!roots.length)h+='<div class="fnav-empty">还没有文件夹，点下面「新建文件夹」建一个</div>';
+  h+='<div class="fnav-acts">'+
+     '<button class="btn-ghost" style="width:auto;height:40px;padding:0 14px" data-fold-new="1">＋ 新建文件夹</button>'+
+     '<button class="btn-ghost" style="width:auto;height:40px;padding:0 14px" data-fold-edit="1">整理文件夹</button>'+
+     '</div></div>';
+  return h;
+}
 function crumbsHTML(){
   if(!state.folder||state.folder==="__none__")return "";
   var path=folderPath(state.folder);
@@ -2371,6 +2430,16 @@ function pillHTML(it){
 function syncMainSearchState(){var q=$("#q"),sb=$(".search");if(q&&sb)sb.classList.toggle("has-q",!!(state.q&&String(state.q).trim()));}
 function renderBody(){
   renderFolderRow();
+  /* 切换到文件夹导航模式：主页面变成文件夹导航（搜索 / 我的工具 / 进入文件夹后恢复正常） */
+  var navActive=!!DB.settings.homeNav&&!state.mine&&state.folder===""&&!String(state.q||"").trim();
+  document.body.classList.toggle("homeNav",navActive);
+  if(navActive){
+    var rootsN=rootFolders().length;
+    $("#stat").innerHTML=rootsN?('共 <b>'+rootsN+'</b> 个主文件夹'):"";
+    $("#modeTag").textContent = (inFile ? "本地文件" : "网页模式") + " · " + VER_LABEL;
+    $("#appList").innerHTML=folderNavHTML();
+    return;
+  }
   var items=visibleItems(), box=$("#appList");
   var hits=(!state.mine&&String(state.q||"").trim())?bundleHits(state.q):[];
   var listTotal=DB.items.filter(function(x){return x.type!=="progress"}).length;
@@ -2648,7 +2717,9 @@ function gfGroups(page){
   gfItems(page).forEach(function(x){var g=String(x.pgroup||"").trim();if(g&&!seen[g]){seen[g]=1;out.push(g)}});
   var ex=DB.settings.extraGroups&&DB.settings.extraGroups[page];
   if(Array.isArray(ex))ex.forEach(function(g){g=String(g||"").trim();if(g&&!seen[g]){seen[g]=1;out.push(g)}});
-  return groupOrderApply(page,out);
+  out=groupOrderApply(page,out);
+  if(page==="box"){var _sp=boxSpecialGroups(out);out=out.filter(function(g){return _sp.indexOf(g)<0}).concat(_sp)}
+  return out;
 }
 function gfGetCur(page){
   return page==="mine"?state.mineGrp:page==="icon"?iconState.grp:page==="box"?boxState.grp:pgState.grp;
@@ -2673,6 +2744,8 @@ function grpChipsHTML(type,cur,attr,page){
     gs=groupOrderApply(page,gs);
     var pin=pinnedGroups(page);
     if(pin&&pin.length){var seen={};gs.forEach(function(g){seen[g]=1});gs=pin.filter(function(g){return seen[g]})}
+    /* 盒中盒：进度条 / 图标 特殊分组统一排到所有自定义分组之后（与分组筛选弹层一致） */
+    if(page==="box"){var _sp=boxSpecialGroups(gs);gs=gs.filter(function(g){return _sp.indexOf(g)<0}).concat(_sp)}
   }
   var h='<button role="tab" data-'+attr+'="all" aria-selected="'+(cur==="all")+'">全部</button>';
   gs.forEach(function(g){ h+='<button role="tab" data-'+attr+'="'+esc(g)+'" aria-selected="'+(cur===g)+'">'+esc(g)+'</button>' });
@@ -3304,13 +3377,19 @@ function boxPruneIfEmpty(){
   toast("「"+name+"」里已经没有文件，已自动删除这个空盒中盒",2600);
   return true;
 }
+/* 盒中盒内「进度条 / 图标」自动分出的特殊分组，统一排在所有自定义分组之后（固定的「未分组」仍放最后） */
+var BOX_SPECIAL_GROUPS=["进度条","图标"];
+function boxSpecialGroups(names){
+  return BOX_SPECIAL_GROUPS.filter(function(g){return names.indexOf(g)>=0});
+}
 function boxGroupNames(){
   var seen={},out=[];
   (curBundle&&Array.isArray(curBundle.items)?curBundle.items:[]).forEach(function(x){
     var g=String(x.pgroup||"").trim();
     if(g&&!seen[g]){seen[g]=1;out.push(g)}
   });
-  return out;
+  var sp=boxSpecialGroups(out);
+  return out.filter(function(g){return sp.indexOf(g)<0}).concat(sp);
 }
 /* 盒中盒内部条目的分组设置 */
 function showBoxGroupSheet(bi){
@@ -3607,14 +3686,21 @@ function closeSheet(){
 var pending=[],pendingFolders=[];
 function restorePendingFolders(){
   if(!pendingFolders||!pendingFolders.length)return;
-  var added=0;
+  var added=0,fixed=0;
   pendingFolders.forEach(function(fo){
-    if(fo&&fo.id&&!folders().some(function(x){return x.id===fo.id})){
-      folders().push({id:fo.id,name:fo.name||"未命名"});added++;
+    if(!fo||!fo.id)return;
+    var ex=folders().find(function(x){return x.id===fo.id});
+    if(ex){
+      /* 已存在：旧版导入曾把子文件夹压平（丢了 p），这里按备份把父子层级补回来 */
+      if(fo.p&&!ex.p){ex.p=fo.p;fixed++}
+      return;
     }
+    var nf={id:fo.id,name:fo.name||"未命名"};
+    if(fo.p)nf.p=fo.p;      /* 关键：保留父文件夹 id，子文件夹才不会变成主文件夹 */
+    folders().push(nf);added++;
   });
   pendingFolders=[];
-  if(added)toast("已恢复 "+added+" 个文件夹",2200);
+  if(added||fixed)toast("已恢复 "+added+" 个文件夹"+(fixed?("，修正 "+fixed+" 处层级"):""),2200);
 }
 function guessName(html,filename){
   var m=html.match(/<title[^>]*>([\s\S]{1,120}?)<\/title>/i);
@@ -3705,6 +3791,13 @@ function readFiles(files){
 /* 备份导入方式选择：拆分（合并进来）或 盒中盒（打包成一个条目） */
 function showBackupChoice(){
   var n=pending.filter(function(r){return r.boxItem}).length;
+  /* 备份里带文件夹定义时，才给出「文件夹变盒中盒内分组」的可勾选项 */
+  var folderDefs=(pendingFolders||[]).filter(function(fo){return fo&&fo.id}).length;
+  var folderOpt=folderDefs?(
+    '<label class="duprow" style="border-top:0;margin-top:2px;padding:10px 2px 4px;align-items:flex-start;gap:10px">'+
+    '<input type="checkbox" class="dupck" id="impFolderAsGroup" checked style="margin-top:2px">'+
+    '<span style="font-size:12.5px;line-height:1.55;color:var(--text-2)">把备份里的 <b>文件夹</b> 变成盒中盒内的 <b>分组</b>：属于各文件夹的工具会按文件夹名分好组，没有文件夹的归入「默认」分组，打开盒中盒后可按分组筛选。<br><span style="color:var(--text-3)">仅对「导入为盒中盒」生效，不想分组可取消勾选。</span></span></label>'
+  ):"";
   openSheet("检测到收纳盒备份（"+n+" 个工具）",
     '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><div>选择导入方式：</div></div>'+
     '<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">'+
@@ -3712,12 +3805,18 @@ function showBackupChoice(){
     '<div class="hint" style="margin-top:-4px">把里面的工具逐个合并进当前收纳盒，和以前的导入方式一样。</div>'+
     '<button class="btn-ghost" style="height:48px;justify-content:center" data-act="imp-bundle">导入为盒中盒</button>'+
     '<div class="hint" style="margin-top:-4px">整包变成一个「盒中盒」条目，里面的内容独立保存、打开不影响外面的收纳盒；包可以随时重命名、移动、删除，类似一个子文件夹。</div>'+
+    folderOpt+
     '</div>',
     '<button class="btn-ghost" data-act="sheet-cancel">取消</button>');
 }
 function doBundleImport(){
   var groups={};
   var mineFlag=importToMine();
+  /* 勾选「文件夹变分组」时，建立 文件夹id -> 文件夹名 映射 */
+  var fmap={};
+  (pendingFolders||[]).forEach(function(fo){if(fo&&fo.id)fmap[fo.id]=fo.name||"未命名"});
+  var asGroup=false,cb=$("#impFolderAsGroup");
+  if(cb&&cb.checked&&Object.keys(fmap).length)asGroup=true;
   pending.forEach(function(r){
     if(!r.boxItem)return;
     var k=String((r.file&&r.file.name)||"备份").replace(/\.html?$/i,"")||"备份";
@@ -3725,7 +3824,19 @@ function doBundleImport(){
   });
   var n=0;
   Object.keys(groups).forEach(function(k){
-    var its=groups[k].map(function(x){var c=Object.assign({},x);delete c._url;return normalize(c)});
+    var its=groups[k].map(function(x){
+      var c=Object.assign({},x);delete c._url;
+      if(asGroup){
+        /* 已有分组优先保留；否则按原文件夹名分组，没有文件夹的归入「默认」 */
+        var g=String(c.pgroup||"").trim();
+        if(!g){g=(c.folder&&fmap[c.folder])?fmap[c.folder]:"默认"}
+        c.pgroup=g;
+      }
+      /* 进度条 / 图标 在盒中盒内单独分组出来（与「文件夹变分组」勾选无关） */
+      if(c.type==="progress")c.pgroup="进度条";
+      else if(c.type==="icon")c.pgroup="图标";
+      return normalize(c);
+    });
     var sz=its.reduce(function(a,b){return a+(b.size||0)},0);
     DB.items.push(normalize({
       id:uid(),name:k,desc:"从备份导入的包（"+its.length+" 个内容）",
@@ -3736,7 +3847,7 @@ function doBundleImport(){
   pending=[];pendingFolders=[];
   save();render();closeSheet();
   if(!n){toast("备份里没有工具");return}
-  toast("已导入 "+n+" 个盒中盒，点开即可使用",2600);
+  toast(asGroup?("已导入 "+n+" 个盒中盒，文件夹已变为盒中盒内分组"):("已导入 "+n+" 个盒中盒，点开即可使用"),2600);
 }
 function showImportSheet(){
   var body='<p class="hint" style="margin-top:0">'+(pending.some(function(r){return r.boxItem})?
@@ -4327,7 +4438,7 @@ function showHelp(){
     '<li>恢复后重新添加到主屏幕即可。</li></ol>'+
     '<h2>管理小技巧</h2>'+
     '<ul><li>卡片右上角 <b>⋯</b>：重命名、<b>置顶</b>、移动到文件夹、<b>导出文件</b>（单个工具导出 .html / 进度条 .svg）、删除；置顶的条目会排到最前面，主页面、我的工具、进度条库、图标库、星标页都一样；</li>'+
-    '<li>顶栏 <b>⚙ 设置图标</b>：使用说明、✉ 更新通知信箱都收在里面；还可以分别开关「我的工具 / 进度条库 / 图标库」三个入口；</li>'+
+    '<li>顶栏 <b>⚙ 设置图标</b>：使用说明、✉ 通知信箱都收在里面；还可以分别开关「我的工具 / 进度条库 / 图标库」三个入口；</li>'+
     '<li>顶部搜索框可按<b>名称、标签、分组、网址、类型</b>筛选（也能搜到「我的工具」里的分组标签）；搜索时每张卡片会标出<b>保存途径</b>（我的工具 / 文件夹 / 未分类），一眼分清；主页面搜索也会列出<b>盒中盒里</b>匹配的文件，点一下打开盒子并自动筛出它们；点灰色标签可直接编辑标签；编辑工具的「标签」用逗号分隔可写<b>多个，全部显示、不再限制数量</b>；主页面 / 我的工具 / 进度条库 / 星标页各视图都会显示自定义标签，进度条库 / 星标页的搜索框也能按<b>名称 / 标签 / 备注 / 分组</b>筛选；</li>'+
     '<li><b>「全部 / 已打包 / 链接」筛选 + 文件夹归类</b>，工具多也不乱；我的工具 / 进度条库 / 图标库三个入口在文件夹行最前面，不与其他文件混在一起；<b>移动弹层默认只列主文件夹</b>，含子文件夹的主文件夹右侧会带一个「▸」小按钮，点它才展开自己的子文件夹（没有子文件夹的不显示按钮），且按「主文件夹 → 它自己的子文件夹」缩进排好，不会散在列表末尾；<b>整理</b>状态下主文件夹上的「移入」小按钮，可把它直接移到别的主文件夹里变成子文件夹（也可多选勾选主文件夹后点「移动到…」）；移动弹层最上面新增<b>「我的工具」</b>目标，选它可直接加入我的工具，主页面多选栏不再单独放「加入我的」按钮；</li>'+
     '<li>多选后点「导出」：可单独导出多个文件，或打包成一个迷你收纳盒 HTML（再导入时可选拆分或变成盒中盒）；</li>'+
@@ -4516,6 +4627,13 @@ document.addEventListener("click",function(e){
   if(fdn){showNewFolder();return}
   var fdm=t.closest("[data-fold-move]");
   if(fdm){showFolderMoveSheet(fdm.getAttribute("data-fold-move"));return}
+  var fnt=t.closest("[data-fnav-toggle]");
+  if(fnt){
+    var fnid=fnt.getAttribute("data-fnav-toggle");
+    if(fnavOpen[fnid])delete fnavOpen[fnid];else fnavOpen[fnid]=1;
+    var _sy=window.scrollY;render();window.scrollTo(0,_sy);
+    return;
+  }
   var fd=t.closest("[data-fold]");
   if(fd){
     var fvid=fd.getAttribute("data-fold");
@@ -4629,11 +4747,15 @@ if(t.closest('[data-act="exp-pack-box"]')){doSelExportPack();return}
     case "show-add": showAddSheet(); break;
     case "notice-read": try{localStorage.setItem(NOTICE_KEY,"read")}catch(e){} syncMailDot(); closeSheet(); break;
     case "mail-open": showMailBox(); break;
+    case "clear-all": showClearAll(); break;
+    case "confirm-clear-all": doClearAll(); break;
     case "tgl-mine": DB.settings.hideMine=!DB.settings.hideMine;save();render();showSettings();break;
     case "tgl-pg": DB.settings.hidePg=!DB.settings.hidePg;save();render();showSettings();break;
     case "tgl-icon": DB.settings.hideIcon=!DB.settings.hideIcon;save();render();showSettings();break;
     case "tgl-tags": DB.settings.hideTags=!DB.settings.hideTags;save();render();showSettings();
       toast(DB.settings.hideTags?"已隐藏卡片标签":"已显示卡片标签");break;
+    case "tgl-homenav": DB.settings.homeNav=!DB.settings.homeNav;save();render();showSettings();
+      toast(DB.settings.homeNav?"已切换到文件夹导航模式":"已恢复默认工具列表");break;
     case "sheet-cancel": closeSheet(); break;
     case "confirm-import": doImport(); break;
     case "imp-split": showImportSheet(); break;
@@ -5932,6 +6054,14 @@ setTimeout(function(){
 },3000);
 /* 站点通知：最新一条弹一次，所有版本更新通知存档在顶栏 ✉ 信件图标里随时翻看 */
 var NOTICES=[
+ {id:"3.1",title:"3.1版本更新通知",date:"11月15日",body:
+  '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5V6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M3 7.5h18a1 1 0 0 1 1 1V19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.5a1 1 0 0 1 1-1Z"/><path d="M8 13h8M8 17h5"/></svg><div><b>盒中盒导入可保留文件夹：</b>导入备份选「导入为盒中盒」时，如果备份里带文件夹，会多出一个可勾选的选项。勾上后，原来属于各文件夹的工具在盒中盒里会自动按<b>文件夹名分好组</b>（没有文件夹的归入「默认」分组），打开盒中盒点顶部的分组标签就能筛选；不勾则和以前一样。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg><div><b>修复：备份导入后子文件夹错位。</b>之前导出的备份重新导入，子文件夹会跑到最外面变成主文件夹。现在会按备份里的父子层级<b>原样还原</b>；已经被压平的旧数据，重新导入一次备份也会<b>自动补回层级</b>，不用手动重建。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg><div><b>设置新增「全部清空」：</b>重新导入备份前，点「设置 → 全部清空」可一键清空全部工具、文件夹（含子文件夹）、分组与置顶，带<b>二次确认</b>。建议先导出一份备份再清空。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5V6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M3 7.5h18a1 1 0 0 1 1 1V19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.5a1 1 0 0 1 1-1Z"/><path d="M8 13h8M8 17h5"/></svg><div><b>设置新增「切换到文件夹导航模式」：</b>开启后主页面变成文件夹导航，只列出「未分类」和各主文件夹；子文件夹<b>默认不展开</b>，点行尾「▸」逐级展开，点文件夹名直接进去看内容。导航行不再显示数字徽标；「未分类」里没有工具时这一行会自动隐藏（普通列表页也一样）。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg><div><b>盒中盒内进度条 / 图标单独分组：</b>把备份按「导入为盒中盒」导入时，里面原有的进度条和图标会自动单独归到「进度条」「图标」两个分组。分组顺序统一为<b>全部 → 各文件夹分组 → 进度条 → 图标 → 未分组</b>，顶部标签栏和漏斗筛选弹层里的顺序完全一致。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 11h16M4 16h10M4 20h7"/></svg><div><b>卡片视图备注完整显示：</b>主页面卡片视图里的备注不再只显示一行、也不会被截断，会<b>完整换行并铺满卡片宽度</b>；顺带去掉了备注右侧多余的留白，长备注看起来更整齐。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83"/></svg><div><b>设置面板小调整：</b>「使用说明」和「通知信箱」改成两个<b>并排同一行</b>的窄胶囊按钮，信箱统一叫「通知信箱」；使用说明、全部清空提示里的称呼也已保持一致。</div></div>'},
  {id:"ver3-rename",mailOnly:true,title:"构建号名字修改通知",date:"11月15日",body:
   '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><div>从 <b>b1115a</b> 版本开始，版本号改为 <b>3.0</b>。</div></div>'},
  {id:"b1115a",title:"b1115a版本更新通知（含b1114a更新内容）",date:"11月15日",body:
@@ -5948,7 +6078,7 @@ var NOTICES=[
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 5h5v5M19 5l-8 8M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4"/></svg><div><b>网页链接新打开方式：</b>网页现在会在收纳盒里直接打开（带返回按钮）。如果网页显示空白（该网站禁止内嵌），点顶栏 <b>↗</b> 换新窗口打开，并会提示「已记住：这个网站以后直接在新窗口打开」——之后这个网站都会自动直接跳转，不再白屏。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><div><b>新增整理模式：</b>点文件夹行最前面的 <b>✏️ 小铅笔</b>进入整理。整理状态下：<b>点文件夹名字</b>可以直接重命名；<b>长按拖动</b>可以调整文件夹顺序，也可以拖动下方的工具卡片调整位置；点文件夹上的 <b>×</b> 删除文件夹（里面的工具不会被删）。平时不进整理模式，怎么点都不会误删。</div></div>'}
 ];
-var NOTICE_KEY="hb.notice.v6";
+var NOTICE_KEY="hb.notice.v7";
 function mailUnread(){
   try{ return localStorage.getItem(NOTICE_KEY)!=="read" }catch(e){ return true }
 }
@@ -6071,9 +6201,15 @@ function showSettings(){
   }
   openSheet("设置",
     '<div style="display:flex;flex-direction:column;gap:8px">'+
-    '<button class="btn-ghost" style="height:48px;justify-content:flex-start;padding:0 14px" data-act="help">使用说明</button>'+
-    '<button class="btn-ghost" style="height:48px;justify-content:flex-start;padding:0 14px" data-act="mail-open">更新通知信箱</button>'+
+    /* 使用说明 / 通知信箱：两个窄胶囊并排同一行 */
+    '<div style="display:flex;gap:8px">'+
+    '<button class="btn-ghost" style="flex:1;min-width:0;height:44px;justify-content:center;padding:0 8px;font-size:13px" data-act="help">使用说明</button>'+
+    '<button class="btn-ghost" style="flex:1;min-width:0;height:44px;justify-content:center;padding:0 8px;font-size:13px" data-act="mail-open">通知信箱</button>'+
+    '</div>'+
     '<button class="btn-ghost" style="height:48px;justify-content:flex-start;padding:0 14px" data-act="dedup">查重 · 重复网址 / 文件</button>'+
+    '<button class="btn-ghost" style="height:48px;justify-content:space-between;padding:0 14px" data-act="clear-all">'+
+      '<span style="text-align:left;overflow:hidden;font-weight:650">全部清空</span>'+
+      '<span style="flex:none;font-size:12px;font-weight:700;color:var(--danger)">重新导入备份前使用</span></button>'+
     '</div>'+
     '<div class="field" style="margin-top:14px;margin-bottom:8px"><label>独立页入口（关闭后筛选行里不再显示）</label></div>'+
     '<div style="display:flex;flex-direction:column;gap:8px">'+
@@ -6083,12 +6219,48 @@ function showSettings(){
     '<button class="btn-ghost" style="height:48px;justify-content:space-between;padding:0 14px" data-act="tgl-tags">'+
       '<span style="text-align:left;overflow:hidden;font-weight:650">隐藏卡片标签</span>'+
       '<span style="flex:none;font-size:12px;font-weight:700;color:'+(DB.settings.hideTags?"var(--brand)":"var(--text-3)")+'">'+(DB.settings.hideTags?"已隐藏":"显示中")+'</span></button>'+
-    '</div>',
+    '<button class="btn-ghost" style="height:48px;justify-content:space-between;padding:0 14px" data-act="tgl-homenav">'+
+      '<span style="text-align:left;overflow:hidden;font-weight:650">切换到文件夹导航模式</span>'+
+      '<span style="flex:none;font-size:12px;font-weight:700;color:'+(DB.settings.homeNav?"var(--brand)":"var(--text-3)")+'">'+(DB.settings.homeNav?"导航中":"列表中")+'</span></button>'+
+    '</div>'+
+    '<p class="hint" style="margin-top:8px">开启后主页面变成 <b>文件夹导航</b>：只显示「未分类」和各主文件夹，子 / 孙文件夹<b>默认不展开</b>，点行右侧「▸」可逐级展开；点文件夹进去才看到里面的工具。顶部「全部 / 已打包 / 链接 / 盒中盒」这排选项会隐藏。搜索、进入文件夹、我的工具都不受影响。</p>',
     '<button class="btn-primary" style="width:auto;padding:0 16px" data-act="sheet-cancel">完成</button>');
+}
+/* ============ 全部清空：重新导入备份前，把当前内容清干净 ============ */
+function showClearAll(){
+  var n=DB.items.length,nf=folders().length;
+  openSheet("全部清空？",
+    '<div class="note" style="margin-top:0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg><div>将删除当前收纳盒里全部 <b>'+n+'</b> 个工具 / 文件、<b>'+nf+'</b> 个文件夹（含子文件夹）以及分组、置顶设置。<b>清空后不能撤销。</b></div></div>'+
+    '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><div>建议先点顶栏<b>下载图标</b>导出一份备份，再回来清空；之后用「添加 → 导入」把备份导回来即可，子文件夹会按原层级归位。</div></div>'+
+    '<p class="hint" style="margin-top:10px">主题、视图、入口开关等显示偏好会保留；通知信箱里的记录不受影响。</p>',
+    '<button class="btn-ghost" data-act="sheet-cancel">取消</button>'+
+    '<button class="btn-primary" style="width:auto;padding:0 16px;background:var(--danger);box-shadow:none" data-act="confirm-clear-all">确认全部清空</button>');
+}
+function doClearAll(){
+  /* 记住 seed 里的内置示例，避免清空后刷新又被 load() 重新灌回来 */
+  var ids=[];
+  try{
+    var sd=JSON.parse($("#seed-data").textContent||"null");
+    if(sd&&Array.isArray(sd.items))sd.items.forEach(function(x){if(x&&x.id&&ids.indexOf(x.builtinId||x.id)<0)ids.push(x.builtinId||x.id)});
+  }catch(e){}
+  DB.items=[];
+  DB.settings.folders=[];
+  DB.settings.pinnedGroups={};
+  DB.settings.groupOrder={};
+  DB.settings.extraGroups={};
+  DB.settings.removedSeed=ids;
+  /* 复位视图 / 搜索 / 多选 / 独立页，清空后回到干净的主页面 */
+  state.q="";state.filter="all";state.folder="";state.folderEdit=false;state.mine=false;state.mineGrp="all";
+  var qi=$("#q");if(qi)qi.value="";
+  if(selMode){try{exitSelect()}catch(e){}}
+  ["#pgPage","#starPage","#boxPage","#minePage","#iconPage"].forEach(function(k){var el=$(k);if(el)el.classList.remove("on")});
+  curBundle=null;nestedItem=null;document.body.style.overflow="";
+  save();render();closeSheet();
+  toast("已全部清空，可以重新导入备份了",2600);
 }
 function showMailBox(){
   var unread=mailUnread();
-  var curIdx=NOTICES.findIndex(function(n){return String(n.id).toLowerCase()===String(BUILD_ID).toLowerCase()});
+  var curIdx=NOTICES.findIndex(function(n){return String(n.id).toLowerCase()===String(VER_LABEL).toLowerCase()});
   var body='<p class="hint" style="margin-top:0">收纳盒的版本更新通知都存档在这里。最新更新只弹一次提醒，之后随时可以回信箱翻看。</p>'+
     '<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">'+
     NOTICES.map(function(n,i){
@@ -6096,7 +6268,7 @@ function showMailBox(){
         '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(i===curIdx&&unread?'<b style="color:var(--brand)">新</b> · ':'')+esc(n.title)+'</span>'+
         '<span style="font-size:11px;color:var(--text-3);flex:none">'+n.date+'</span></button>';
     }).join("")+'</div>';
-  openSheet("更新通知信箱",body,
+  openSheet("通知信箱",body,
     '<button class="btn-primary" style="width:auto;padding:0 16px" data-act="sheet-cancel">关闭</button>');
 }
 function showNoticeDetail(id){
@@ -6108,7 +6280,7 @@ function showNoticeDetail(id){
 function siteNotice(){
   try{ if(localStorage.getItem(NOTICE_KEY)==="read")return }catch(e){}
   /* 只弹当前构建号对应的更新通知；该版本没有配套通知就不弹 */
-  var cur=NOTICES.find(function(n){return !n.mailOnly&&String(n.id).toLowerCase()===String(BUILD_ID).toLowerCase()});
+  var cur=NOTICES.find(function(n){return !n.mailOnly&&String(n.id).toLowerCase()===String(VER_LABEL).toLowerCase()});
   if(!cur)return;
   setTimeout(function(){
     openSheet("网站更新通知",cur.body+
