@@ -616,6 +616,14 @@ html[data-theme="mutedteal"] .logo{
 .gfpin{flex:none;min-width:62px;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:999px;background:var(--bg-2);color:var(--text-2);font-size:12px;font-weight:650;cursor:pointer;font-family:inherit;white-space:nowrap}
 .gfpin.on{background:var(--brand-soft);border-color:color-mix(in srgb,var(--brand) 45%,transparent);color:var(--brand)}
 .gflist{margin:6px 0 2px}
+/* 分组筛选弹层 · 胶囊排列：分组变成流动胶囊，宽度随文字走、自动换行（编辑模式下仍用行式，方便重命名 / 删除 / 拖动） */
+.gflist.gfpills{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 2px}
+.gfpillchip{display:inline-flex;align-items:center;gap:5px;max-width:100%;border:1px solid var(--line);border-radius:999px;background:var(--bg-2);color:var(--text);font-size:12.5px;font-weight:620;padding:7px 12px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.gfpillchip .n{font-size:10.5px;color:var(--text-3);font-weight:550}
+.gfpillchip.on{background:var(--brand-soft);border-color:color-mix(in srgb,var(--brand) 45%,transparent);color:var(--brand)}
+.gfpillchip.on .n{color:var(--brand);opacity:.75}
+/* 制作者标签：与普通标签做区分（描边样式 + @ 前缀），固定显示在普通标签最前面 */
+.pgtag.mkr{background:transparent;border:1px solid color-mix(in srgb,var(--brand) 55%,transparent);color:var(--brand);padding:1px 6px}
 /* 已置顶的分组行：品牌浅底 + 左侧色条，和未置顶分组明显区分 */
 .gfrow.gf-pin .gfpick{background:color-mix(in srgb,var(--brand-soft) 78%,var(--bg-2));color:var(--brand);font-weight:700;box-shadow:inset 3px 0 0 0 var(--brand)}
 .gfrow.gf-pin .gfpick .n{color:var(--brand);opacity:.75}
@@ -874,6 +882,10 @@ body.esel .flowview .ckmark{display:grid}
   background:color-mix(in srgb,var(--brand) 10%,var(--bg-2));
   border:1px solid color-mix(in srgb,var(--brand) 52%,var(--line));
   color:var(--brand);font-weight:700;
+}
+/* 置顶卡片内的制作者标签：改用品牌实底白字——普通标签（无论是否置顶）都不会是实底，置顶下也能一眼区分 */
+.pgcard.pinned .pgtag.mkr,.boxrow.pinned .pgtag.mkr,.pgpills .pgpill.pinned .pgtag.mkr,.pgflowview .pgflow.pinned .pgtag.mkr,.flowview .pill.pinned .pgtag.mkr{
+  background:var(--brand);border-color:var(--brand);color:#fff;
 }
 
 #q::-webkit-search-cancel-button{display:none}
@@ -1154,17 +1166,21 @@ html[data-theme="dark"] .viewer iframe{background:#12141f}
 .sheet-head{display:flex;align-items:center;gap:10px;padding:16px 18px 10px;flex:none}
 .sheet-head h3{margin:0;font-size:16px;font-weight:640;flex:1;letter-spacing:-.01em}
 .sheet-body{padding:0 18px 16px;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0}
-/* 分组筛选流程：弹层顶部固定、高度随内容自然收缩。
-   列表 ⇄ 新建 / 重命名 / 删除切换时顶边不动，短表单内容紧贴标题，不再被撑高居中留大片空白；
-   表单停在屏幕上半部，键盘弹起时系统也不必把整个页面上推。 */
+/* 分组筛选流程：弹层顶部固定、高度完全交给内容决定（height:auto）。
+   列表 ⇄ 新建 / 重命名 / 删除切换时顶边不动；JS 不再写死像素高度——
+   之前在部分 iOS WebView 里「切换内容那一帧量到旧布局」导致弹层被锁死压扁，
+   显式高度 + 校准都治标不治本，自适应布局从机制上不可能锁死。
+   内容区给一个视口上限：分组特别多时列表内部滚动，底部按钮仍然贴着弹层底边 */
 .sheet-mask.gf-flow{--gf-top:clamp(88px,18vh,168px);align-items:flex-start}
 .sheet-mask.gf-flow>.sheet{
   margin-top:var(--gf-top);
   max-height:calc(100vh - var(--gf-top) - 12px);
+  max-height:calc(100dvh - var(--gf-top) - 12px);
   border-radius:22px;
 }
-/* 高度动画期间内容区撑满剩余空间：内容贴顶、底部按钮贴底，不会浮在半空 */
-.sheet-mask.gf-flow>.sheet>.sheet-body{flex:1 1 auto;min-height:0}
+.sheet-mask.gf-flow>.sheet>.sheet-body{flex:0 1 auto;min-height:0;
+  max-height:calc(100vh - var(--gf-top) - 175px);
+  max-height:calc(100dvh - var(--gf-top) - 175px)}
 /* 弹层固定头部的操作区（分组流程放「编辑 / 完成」）与固定底部的主操作按钮 */
 #sheetHeadSlot{display:flex;align-items:center;gap:8px;flex:none}
 .sheet-foot .gf-foot-main{margin-right:auto}
@@ -1573,6 +1589,8 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
   </div>
   <div class="sel-ops">
     <button class="btn-ghost" data-act="esel-all" id="extSelAllBtn">全选</button>
+    <button class="btn-ghost" data-act="esel-grp" id="extSelGrpBtn" style="display:none">移动分组</button>
+    <button class="btn-ghost" data-act="esel-maker" id="extSelMakerBtn" style="display:none">设置制作者</button>
     <button class="btn-ghost" data-act="esel-unmine" id="extSelMineBtn" style="display:none">移出我的</button>
     <button class="btn-ghost" data-act="esel-move" id="extSelMoveBtn" style="display:none">移动到…</button>
     <button class="btn-ghost" data-act="esel-export">导出</button>
@@ -1589,7 +1607,7 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
 "use strict";
 
 /* ---------------------- 诊断：版本号 + 错误显示条 ---------------------- */
-var APP_VER="v3",BUILD_ID="b1115a",VER_LABEL="3.1";/* VER_LABEL：页面对外显示版本号；BUILD_ID 为内部构建标识（版本检测/通知匹配用），保持不变 */
+var APP_VER="v3",BUILD_ID="b1115a",VER_LABEL="3.2";/* VER_LABEL：页面对外显示版本号；BUILD_ID 为内部构建标识（版本检测/通知匹配用），保持不变 */
 window.__hbver=APP_VER;
 function showErrBar(msg){
   try{
@@ -1654,7 +1672,7 @@ function colorOf(item){return item.color||"#5a5fd8"}
 /* ---------------------- 存储 ---------------------- */
 function stripItem(it){
   // 内容(html/svg)不进 localStorage（体积大），只保留元数据；内容存 IndexedDB
-  var o=Object.assign({},it);delete o.html;delete o.svg;delete o._url;
+  var o=Object.assign({},it);delete o.html;delete o.svg;delete o._url;delete o.cover;
   if(o.type==="bundle"&&Array.isArray(o.items)){
     // 盒中盒：内部文件的内容同样不进 localStorage，只留元数据
     o.items=o.items.map(function(x){var c=Object.assign({},x);delete c.html;delete c.svg;return c});
@@ -1716,6 +1734,7 @@ function save(){
     if(it.type==="embed"&&it.html)map[it.id]=it.html;
     if(it.type==="progress"&&it.svg)map[it.id]=it.svg;
     if(it.type==="icon"&&it.svg)map[it.id]=it.svg;
+    if((it.type==="progress"||it.type==="icon")&&it.cover)map[it.id+"@cover"]=it.cover;   /* 自定义封面也是大字段，走 IndexedDB */
     if(it.type==="bundle"&&Array.isArray(it.items)){
       it.items.forEach(function(x){
         var c=x.type==="progress"||x.type==="icon"?x.svg:x.html;
@@ -1726,6 +1745,7 @@ function save(){
   cdbPutAll(map).then(function(){
     // 清理已删除工具的内容
     var keep={};DB.items.forEach(function(it){keep[it.id]=1;
+      if((it.type==="progress"||it.type==="icon")&&it.cover)keep[it.id+"@cover"]=1;
       if(it.type==="bundle"&&Array.isArray(it.items))it.items.forEach(function(x){if(x&&x.id)keep[innerKey(it.id,x.id)]=1});
     });
     return cdbAll().then(function(all){
@@ -1744,6 +1764,7 @@ function hydrate(){
     DB.items.forEach(function(it){
       if(!it.html&&all[it.id]){ it.html=all[it.id]; changed=true; }
       if(!it.svg&&all[it.id]&&(it.type==="progress"||it.type==="icon")){ it.svg=all[it.id]; changed=true; }
+      if(!it.cover&&(it.type==="progress"||it.type==="icon")&&all[it.id+"@cover"]){ it.cover=all[it.id+"@cover"]; changed=true; }
       if(it.type==="bundle"&&Array.isArray(it.items)){
         it.items.forEach(function(x){
           if(!x||!x.id)return;
@@ -1803,6 +1824,11 @@ function normalize(it){
     it.tags=typeof it.tags==="string"?it.tags.split(/[,，]/):[];
   }
   it.tags=it.tags.filter(function(t){return typeof t==="string"});
+  /* 制作者：单个名字字符串，空值删除字段 */
+  if(it.maker!=null){it.maker=String(it.maker).trim().slice(0,20);if(!it.maker)delete it.maker}
+  /* 进度类型：仅进度条有（chapter=章节进度 / full=全文进度）；缺省或非法值归为全文进度 */
+  if(it.type==="progress"){ if(it.scope!=="chapter"&&it.scope!=="full")it.scope="full" }
+  else if(it.scope!=null)delete it.scope;
   it.size=Number(it.size)||0;
   if(it.type==="bundle"&&!Array.isArray(it.items))it.items=[];
   if(it.folder!=null&&typeof it.folder!=="string")it.folder=String(it.folder);
@@ -2754,39 +2780,62 @@ function grpChipsHTML(type,cur,attr,page){
 }
 /* 分组展开筛选弹层：点选筛选 / 置顶 / 编辑（重命名、删除、拖动排序） */
 var gfEdit={};
-/* 分组流程专用弹层：顶部固定、高度随内容收缩，切换时页面不位移 */
+/* 编辑对象：grp=编辑分组（重命名/删除/置顶/排序）；mk=编辑制作者（重命名/排序）。
+   两个对象在筛选弹层顶部直接切换，同一时间只让一种进入可编辑状态 */
+var gfEditTarget={};
+/* 分组流程专用弹层：顶部固定、高度随内容自适应（不再用 JS 写像素高） */
 function gfSheet(title,bodyHTML,footHTML,headHTML){
-  var sh=document.querySelector(".sheet");
-  var prevH=sh?sh.getBoundingClientRect().height:0;   /* 切换前的弹层高度 */
   openSheet(title,bodyHTML,footHTML,headHTML);          /* 先按普通弹层复位旧状态 */
-  $("#mask").classList.add("gf-flow");                  /* 分组流程再启用自己的贴顶固定布局 */
-  if(!sh)return;
-  var mx=parseFloat(window.getComputedStyle(sh).maxHeight)||Math.round(window.innerHeight*0.82);
-  var nextH=Math.min(sh.getBoundingClientRect().height||mx,mx);  /* 新内容的自然高度 */
-  sh.style.height=nextH+"px";
-  /* auto 高度无法用 CSS transition，改用显式起终点的动画：列表 ⇄ 表单平滑展开 / 收起，
-     不再出现「添加分组后弹层突然向下划一下」的生硬跳变 */
-  if(prevH>0&&Math.abs(nextH-prevH)>4&&sh.animate){
-    try{sh.animate([{height:prevH+"px"},{height:nextH+"px"}],{duration:240,easing:"cubic-bezier(.2,.8,.2,1)"})}catch(e){}
-  }
+  $("#mask").classList.add("gf-flow");                  /* 分组流程再启用贴顶自适应布局 */
+  /* 高度完全交给 CSS（height:auto + 内容区视口上限）。
+     之前用 JS 量内容高度再写死：在部分 iOS WebView 里切换内容那一帧会量到旧布局，
+     弹层被锁死压扁、列表只剩一两行，校准 / 收敛循环都只能缓解。
+     自适应布局下弹层永远等于内容自然高度，不存在锁死；
+     切换时给内容 150ms 轻微淡入，柔化高度变化 */
+  var sb=$("#sheetBody");
+  if(sb&&sb.animate){try{sb.animate([{opacity:.5},{opacity:1}],{duration:150,easing:"ease-out"})}catch(e){}}
+}
+/* 制作者显示顺序：settings.makerOrder 里记录的顺序优先，新出现的制作者依次追加在后面 */
+function makerOrderApply(page,mks){
+  var o=DB.settings.makerOrder&&DB.settings.makerOrder[page];
+  if(!Array.isArray(o))return mks;
+  var seen={},out=[];
+  o.forEach(function(m){if(mks.indexOf(m)>=0&&!seen[m]){seen[m]=1;out.push(m)}});
+  mks.forEach(function(m){if(!seen[m]){seen[m]=1;out.push(m)}});
+  return out;
 }
 function showGroupFilter(page){
   var edit=!!gfEdit[page];
+  var mkgEdit=edit&&(gfEditTarget[page]||"grp")==="mk";
+  var grpEdit=edit&&!mkgEdit;
   var cur=gfGetCur(page),gs=gfGroups(page),pin=pinnedGroups(page);
   var items=gfItems(page);
   var cnt=function(g){return items.filter(function(x){return String(x.pgroup||"").trim()===g}).length};
+  /* 排列样式：行式（默认，可重命名 / 删除 / 拖动）/ 流动胶囊（点胶囊筛选，宽度随文字走自动换行）。
+     编辑分组时强制行式——重命名、删除、拖动排序都需要完整的一行；编辑制作者时分组只作展示 */
+  var pills=DB.settings.gfLayout==="pills"&&!grpEdit;
   /* 「编辑 / 完成」放弹层固定头部，「＋ 新建分组 / 显示全部分组」放固定底部，
      分组再多也不会跟着列表滚走；只有 .gflist 内容随 .sheet-body 单层滚动 */
   var head='<button class="gfedit-btn'+(edit?" on":"")+'" data-act="gf-edit" data-gfpage="'+page+'">'+(edit?"完成":"编辑")+'</button>';
-  var body='<div class="gfhead"><span class="lbl">'+(edit?'✎ 重命名 · × 删除 · 拖 ⠿ 排序 · 置顶':'点分组名筛选 · 编辑里管理置顶')+'</span></div>';
-  body+='<div class="gflist" id="gfList" data-gfpage="'+page+'">';
+  var layBtn='<button class="gfedit-btn" data-act="gf-layout" data-gfpage="'+page+'">'+(pills?"列表排列":"胶囊排列")+'</button>';
+  /* 编辑态：上方直接切换「编辑分组 / 编辑制作者」，避免两种标签的可编辑行混在一起 */
+  var tgtBtns=edit?('<span style="display:flex;gap:6px;flex:none">'+
+    '<button class="gfedit-btn'+(grpEdit?" on":"")+'" data-act="gf-edittgt" data-v="grp" data-gfpage="'+page+'">编辑分组</button>'+
+    '<button class="gfedit-btn'+(mkgEdit?" on":"")+'" data-act="gf-edittgt" data-v="mk" data-gfpage="'+page+'">编辑制作者</button></span>'):"";
+  var body='<div class="gfhead"><span class="lbl">'+(edit?(grpEdit?'编辑分组':'编辑制作者'):(pills?'点胶囊筛选 · 右上「编辑」管理分组':'点分组名筛选 · 编辑里管理置顶'))+'</span>'+(edit?tgtBtns:layBtn)+'</div>';
+  body+='<div class="gflist'+(pills?" gfpills":"")+'" id="gfList" data-gfpage="'+page+'">';
   var row=function(val,label,extra,on,isGroup){
     /* 默认「全部不置顶」不高亮；真正设置过置顶后才把已置顶行标出来 */
     var hi=!!pin&&on;
     /* 「全部」保留选中高亮；单独选中某个分组不留任何浅色选中态 */
     var onCls=(cur===val&&val==="all")?" on":"";
+    if(pills){
+      /* 胶囊排列：分组 / 全部 / 未分组都是流动胶囊，点一下直接筛选 */
+      return '<button class="gfpillchip'+(hi?" on":"")+onCls+'" data-gfpick="'+esc(val)+'" data-gfpage="'+page+'">'+
+        esc(label)+(extra?'<span class="n">'+esc(extra)+'</span>':"")+'</button>';
+    }
     var pinBtn='<button class="gfpin'+(on?" on":"")+'" data-gfpin="'+esc(val)+'" data-gfpage="'+page+'">'+(on?"取消置顶":"置顶")+'</button>';
-    if(edit&&isGroup){
+    if(grpEdit&&isGroup){
       return '<div class="gfrow gfedit'+(hi?" gf-pin":"")+'" data-gfname="'+esc(val)+'">'+
         '<span class="gfdrag" title="拖动排序">⠿</span>'+
         '<span class="gfpick" style="flex:1">'+esc(label)+(extra?'<span class="n">'+esc(extra)+'</span>':"")+'</span>'+
@@ -2803,13 +2852,67 @@ function showGroupFilter(page){
   if(!gs.length)body+='<p class="hint" style="padding:10px 4px">还没有分组。在条目的 ⋯ 菜单里点「设置分组」即可创建。</p>';
   else gs.forEach(function(g){body+=row(g,g,cnt(g)+" 个",pin?pin.indexOf(g)>=0:false,true)});
   body+=row("ug","未分组","",false,false);
-  body+='</div><p class="hint" style="margin-top:10px">'+
-    (edit?'拖动左侧 ⠿ 调整顺序；「置顶」把常用分组固定到页面顶部；删除分组后，文件会回到「未分组」。':'点分组名直接筛选；点右上角「编辑」可置顶、重命名、删除分组或调整顺序。已置顶的分组会固定显示在页面顶部。')+'</p>';
-  var foot=(edit?'<button class="btn-ghost gf-foot-main" data-act="gf-showall" data-gfpage="'+page+'">显示全部分组</button>':
-                '<button class="btn-ghost gf-foot-main" style="color:var(--brand);font-weight:700" data-act="gf-new" data-gfpage="'+page+'">＋ 新建分组</button>')+
+  body+='</div>';
+  /* 进度条库 / 图标库：制作者筛选独立区块。
+     「未归类」永远排在最前面，数量为 0 时整个胶囊不显示；
+     编辑状态下改成整行，左侧 ⠿ 长按拖动可调整制作者显示顺序（顺序随备份走） */
+  if(page==="pg"||page==="icon"){
+    var mkSt=page==="pg"?pgState:iconState;
+    var mkType=page==="pg"?"progress":"icon";
+    var mkSeen={},mks=[],nNone=0;
+    DB.items.forEach(function(x){
+      if(x.type!==mkType)return;
+      var m=String(x.maker||"").trim();
+      if(m){if(!mkSeen[m]){mkSeen[m]=1;mks.push(m)}}
+      else nNone++;
+    });
+    mks=makerOrderApply(page,mks);
+    /* 漏填的都补上以后「未归类」会消失；若之前正筛选它，顺手清掉避免空列表 */
+    if(!nNone&&mkSt.maker==="__none__")mkSt.maker="";
+    body+='<div class="gfhead" style="margin-top:14px"><span class="lbl">制作者'+(mkgEdit?'（长按 ⠿ 排序 · ✎ 重命名）':'')+'</span>'+
+      (mkSt.maker?'<button class="gfedit-btn" data-act="gf-mk-clear" data-gfpage="'+page+'">清除筛选</button>':"")+'</div>';
+    if(!mks.length&&!nNone)body+='<p class="hint" style="padding:6px 4px 0">还没有制作者。导入 SVG 时填写，或在条目 ⋯ 菜单里点「设置制作者」。</p>';
+    else if(mkgEdit){
+      body+='<div class="gflist" id="gfMakerList" data-gfpage="'+page+'">';
+      if(nNone)body+='<div class="gfrow"><span class="gfpick" style="flex:1;padding-left:26px;color:var(--text-3)">未归类<span class="n">'+nNone+'</span></span><span class="gfmini" title="固定排在最前">⇤</span></div>';
+      mks.forEach(function(m){
+        var n=DB.items.filter(function(x){return x.type===mkType&&String(x.maker||"").trim()===m}).length;
+        body+='<div class="gfrow gfedit" data-mkname="'+esc(m)+'">'+
+          '<span class="gfdrag" title="长按拖动排序">⠿</span>'+
+          '<span class="gfpick" style="flex:1">'+esc(m)+'<span class="n">'+n+'</span></span>'+
+          '<button class="gfmini" data-act="gf-mk-rename" data-gfpage="'+page+'" data-mkname="'+esc(m)+'" title="重命名">✎</button>'+
+          '</div>';
+      });
+      body+='</div>';
+    }else{
+      var mkChips=[];
+      if(nNone)mkChips.push('<button class="gfpillchip'+(mkSt.maker==="__none__"?" on":"")+'" data-gfmk="__none__" data-gfpage="'+page+'">未归类<span class="n">'+nNone+'</span></button>');
+      mks.forEach(function(m){
+        var n=DB.items.filter(function(x){return x.type===mkType&&String(x.maker||"").trim()===m}).length;
+        mkChips.push('<button class="gfpillchip'+(mkSt.maker===m?" on":"")+'" data-gfmk="'+esc(m)+'" data-gfpage="'+page+'">'+esc(m)+'<span class="n">'+n+'</span></button>');
+      });
+      body+='<div class="gflist gfpills">'+mkChips.join("")+'</div>';
+    }
+  }
+  /* 进度条库：进度类型筛选（全文进度 / 章节进度），与制作者筛选同款交互 */
+  if(page==="pg"&&!edit){
+    var nFull=0,nChap=0;
+    DB.items.forEach(function(x){ if(x.type!=="progress")return; if(pgScopeOf(x)==="chapter")nChap++;else nFull++ });
+    body+='<div class="gfhead" style="margin-top:14px"><span class="lbl">进度类型</span>'+
+      (pgState.scope?'<button class="gfedit-btn" data-act="gf-sc-clear" data-gfpage="pg">清除筛选</button>':"")+'</div>';
+    body+='<div class="gflist gfpills">'+
+      '<button class="gfpillchip'+(pgState.scope==="full"?" on":"")+'" data-gfsc="full" data-gfpage="pg">全文进度<span class="n">'+nFull+'</span></button>'+
+      '<button class="gfpillchip'+(pgState.scope==="chapter"?" on":"")+'" data-gfsc="chapter" data-gfpage="pg">章节进度<span class="n">'+nChap+'</span></button>'+
+      '</div>';
+  }
+  body+='<p class="hint" style="margin-top:10px">'+
+    (grpEdit?'拖动左侧 ⠿ 调整顺序；「置顶」把常用分组固定到页面顶部；删除分组后，文件会回到「未分组」。':mkgEdit?'拖动制作者左侧 ⠿ 调整显示顺序，点 ✎ 可重命名：该制作者下的全部条目会一起改名，排序位置保留。':(pills?'点胶囊直接筛选；点「列表排列」换回整行样式。已置顶的分组会固定显示在页面顶部。':'点分组名直接筛选；点右上角「编辑」可置顶、重命名、删除分组或调整顺序。已置顶的分组会固定显示在页面顶部。'))+'</p>';
+  var foot=((edit&&grpEdit)?'<button class="btn-ghost gf-foot-main" data-act="gf-showall" data-gfpage="'+page+'">显示全部分组</button>':
+           (!edit?'<button class="btn-ghost gf-foot-main" style="color:var(--brand);font-weight:700" data-act="gf-new" data-gfpage="'+page+'">＋ 新建分组</button>':""))+
            '<button class="btn-ghost" data-act="gf-close" data-gfpage="'+page+'">关闭</button>';
   gfSheet("分组筛选 · 置顶",body,foot,head);
-  if(edit)gfBindDrag(page);
+  if(grpEdit)gfBindDrag(page);
+  if(mkgEdit)gfBindMakerDrag(page);
 }
 function gfSetGroup(page,val){
   gfSetCur(page,val);gfRerender(page);
@@ -2856,6 +2959,32 @@ function gfRenameGo(page,oldN){
     if(page==="box")boxSyncSize();
     save();gfRerender(page);
     toast("已改名为「"+nw+"」");
+  }
+  gfEdit[page]=true;showGroupFilter(page);
+}
+/* ---- 制作者重命名（编辑制作者态，✎）：该制作者下所有条目一起改名 ---- */
+function gfMkRenameSheet(page,oldN){
+  gfSheet("重命名制作者",
+    '<div class="field"><label for="gf-mk-new">制作者名字</label>'+
+    '<input class="input" id="gf-mk-new" maxlength="20" value="'+esc(oldN)+'"></div>'+
+    '<p class="hint">保存后，这个制作者下的全部'+((page==="icon")?"图标":"进度条")+'会一起换成新名字，排序位置保留；当前筛选也会跟着更新。</p>',
+    '<button class="btn-ghost" data-act="gf-back" data-gfpage="'+page+'">返回</button>'+
+    '<button class="btn-primary" style="width:auto;padding:0 16px" data-act="gf-mk-rename-go" data-gfpage="'+page+'" data-mkname="'+esc(oldN)+'">保存</button>');
+}
+function gfMkRenameGo(page,oldN){
+  var el=$("#gf-mk-new"),nw=el?String(el.value||"").trim().slice(0,20):"";
+  if(!nw){toast("名字不能为空");return}
+  if(nw!==oldN){
+    var exists=gfItems(page).some(function(x){return String(x.maker||"").trim()===nw});
+    if(exists){toast("已经有同名制作者了");return}
+    gfItems(page).forEach(function(x){if(String(x.maker||"").trim()===oldN)x.maker=nw});
+    var o=DB.settings.makerOrder;
+    if(o&&Array.isArray(o[page]))o[page]=o[page].map(function(m){return m===oldN?nw:m});
+    var st=(page==="icon")?iconState:pgState;
+    if(st.maker===oldN)st.maker=nw;
+    try{if(localStorage.getItem("hb.lastMaker")===oldN)localStorage.setItem("hb.lastMaker",nw)}catch(e){}
+    save();gfRerender(page);
+    toast("已把制作者「"+oldN+"」改名为「"+nw+"」");
   }
   gfEdit[page]=true;showGroupFilter(page);
 }
@@ -2948,6 +3077,57 @@ function gfBindDrag(page){
   box.addEventListener("pointerup",end);
   box.addEventListener("pointercancel",end);
 }
+/* ---- 制作者标签排序（编辑态，长按 ⠿ 拖动；与分组拖动同款操作） ---- */
+var gfMkDrag=null;
+function gfBindMakerDrag(page){
+  var box=$("#gfMakerList");if(!box)return;
+  box.addEventListener("pointerdown",function(e){
+    var h=e.target.closest(".gfdrag");if(!h)return;
+    var row=h.closest(".gfrow.gfedit[data-mkname]");if(!row||row.parentNode!==box)return;
+    e.preventDefault();
+    var r=row.getBoundingClientRect();
+    gfMkDrag={row:row,page:page,ox:e.clientX-r.left,oy:e.clientY-r.top,started:false,ghost:null};
+    try{row.setPointerCapture(e.pointerId)}catch(_){}
+  });
+  box.addEventListener("pointermove",function(e){
+    if(!gfMkDrag||gfMkDrag.page!==page||!gfMkDrag.row.isConnected)return;
+    if(!gfMkDrag.started){
+      gfMkDrag.started=true;
+      var g=document.createElement("div");g.className="gf-ghost";
+      g.textContent=gfMkDrag.row.getAttribute("data-mkname");
+      document.body.appendChild(g);gfMkDrag.ghost=g;
+      gfMkDrag.row.classList.add("gf-dragging");
+    }
+    e.preventDefault();
+    var gh=gfMkDrag.ghost;
+    gh.style.left=(e.clientX-gfMkDrag.ox)+"px";
+    gh.style.top=(e.clientY-gfMkDrag.oy)+"px";
+    gh.style.display="none";
+    var under=document.elementFromPoint(e.clientX,e.clientY);
+    gh.style.display="";
+    var tgt=under&&under.closest?under.closest(".gfrow.gfedit[data-mkname]"):null;
+    if(!tgt||tgt===gfMkDrag.row||tgt.parentNode!==gfMkDrag.row.parentNode)return;
+    var tr=tgt.getBoundingClientRect();
+    tgt.parentNode.insertBefore(gfMkDrag.row,(e.clientY<tr.top+tr.height/2)?tgt:tgt.nextSibling);
+  },{passive:false});
+  var end=function(){
+    if(!gfMkDrag)return;
+    if(gfMkDrag.ghost)gfMkDrag.ghost.remove();
+    gfMkDrag.row.classList.remove("gf-dragging");
+    var pg=gfMkDrag.page,moved=gfMkDrag.started;gfMkDrag=null;
+    if(!moved)return;
+    var names=[].slice.call(document.querySelectorAll("#gfMakerList .gfrow.gfedit[data-mkname]"))
+      .map(function(r){return r.getAttribute("data-mkname")});
+    if(names.length){
+      var o=DB.settings.makerOrder||(DB.settings.makerOrder={});
+      o[pg]=names;save();
+      showGroupFilter(pg);   /* 保持编辑态重绘，松手即看到新顺序 */
+      toast("制作者顺序已保存");
+    }
+  };
+  box.addEventListener("pointerup",end);
+  box.addEventListener("pointercancel",end);
+}
 var STAR_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.2 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9Z"/></svg>';
 /* 卡片角标：已收藏的进度条才在角上显示一个小星星（主题色），未收藏不显示；纯状态、不可点 */
 function starBadgeHTML(it){
@@ -2971,21 +3151,34 @@ function syncVStar(){
   b.classList.toggle("on",!!(it&&it.star));
   b.setAttribute("aria-label",it&&it.star?"取消收藏":"收藏");
 }
-/* 用户自定义标签（编辑弹窗填写的 tags）：遵守「隐藏卡片标签」设置，过滤系统标签，全部显示 */
+/* 用户自定义标签（编辑弹窗填写的 tags）：遵守「隐藏卡片标签」设置，过滤系统标签，全部显示。
+   制作者（it.maker）以 @名字 特殊样式固定显示在普通标签最前面 */
 function pgTagChips(it){
   if(DB.settings.hideTags)return "";
+  var mk=String(it.maker||"").trim();
   var ts=(it.tags||[]).filter(function(t){return t&&t!=="网页"&&t!=="链接"&&t!=="导入"});
-  if(!ts.length)return "";
-  return ts.map(function(t){return '<span class="pgtag">'+esc(t)+'</span>'}).join("");
+  var h=mk?'<span class="pgtag mkr">'+esc(mk)+'</span>':"";
+  return h+ts.map(function(t){return '<span class="pgtag">'+esc(t)+'</span>'}).join("");
 }
 function pgTagRow(it){
   var c=pgTagChips(it);
   return c?'<span class="pgtags">'+c+'</span>':"";
 }
-/* 进度条库 / 星标页搜索 hay：名称 + 备注 + 标签 + 分组 + 自动识别类型 */
+/* 进度类型：chapter=章节进度 / full=全文进度；旧数据没存 scope 的按全文进度算 */
+function pgScopeOf(it){return it&&it.scope==="chapter"?"chapter":"full"}
+/* 从 SVG 源码猜测进度类型：出现「章 / 页 / {page} / {chapter}」等字样按章节进度，
+   出现「全文 / 全书」按全文进度，其余默认全文进度；猜错了可在导入弹层里手动改 */
+function svgGuessScope(svg){
+  var s=String(svg||"");
+  if(/全[文书]/.test(s))return "full";
+  if(/章/.test(s))return "chapter";
+  if(/\{page\}|\{chapter\}|页/.test(s))return "chapter";
+  return "full";
+}
+/* 进度条库 / 星标页搜索 hay：名称 + 备注 + 制作者 + 标签 + 分组 + 自动识别类型 + 进度类型 */
 function pgSearchHay(it){
-  return (String(it.name||"")+" "+String(it.desc||"")+" "+(it.tags||[]).join(" ")+" "+
-    String(it.pgroup||"")+" "+String(svgKind(it.svg)||"")).toLowerCase();
+  return (String(it.name||"")+" "+String(it.desc||"")+" "+String(it.maker||"")+" "+(it.tags||[]).join(" ")+" "+
+    String(it.pgroup||"")+" "+String(svgKind(it.svg)||"")+" "+(pgScopeOf(it)==="chapter"?"章节进度":"全文进度")).toLowerCase();
 }
 /* 进度条卡片三视图渲染，进度条库与星标页共用；mode 决定多选态归属 */
 function pgItemHTML(it,view,mode){
@@ -3022,7 +3215,7 @@ function pgItemHTML(it,view,mode){
     '<div class="name">'+esc(it.name||"未命名")+'</div>'+
     (it.desc?'<div class="desc">'+esc(it.desc)+'</div>':"")+
     tagrow+
-    (it.svg?'<div class="pgthumb"><img loading="lazy" draggable="false" src="'+progressThumbUri(it.svg)+'" alt=""></div>':"")+
+    ((it.cover||it.svg)?'<div class="pgthumb"><img loading="lazy" draggable="false" src="'+(it.cover||progressThumbUri(it.svg))+'" alt=""></div>':"")+
     '<button class="more" data-act="menu" aria-label="更多操作" data-id="'+it.id+'">'+MORE_SVG+'</button>'+
     starBadgeHTML(it)+
     '</article>';
@@ -3034,6 +3227,13 @@ function renderPgPage(){
   var all=sortByOrd(DB.items.filter(function(x){return x.type==="progress"}));
   var pgs=pgState.grp==="ug"?all.filter(function(x){return !String(x.pgroup||"").trim()})
     :pgState.grp==="all"?all:all.filter(function(x){return String(x.pgroup||"").trim()===pgState.grp});
+  /* 制作者筛选：分组筛选弹层里选中制作者后只显示该制作者的进度条；
+     「__none__」= 未归类，列出没填写制作者的，方便检查补填 */
+  if(pgState.maker==="__none__")pgs=pgs.filter(function(x){return !String(x.maker||"").trim()});
+  else if(pgState.maker)pgs=pgs.filter(function(x){return String(x.maker||"").trim()===pgState.maker});
+  /* 进度类型筛选：分组筛选弹层里选中「全文进度 / 章节进度」后只显示对应类型 */
+  if(pgState.scope==="chapter")pgs=pgs.filter(function(x){return pgScopeOf(x)==="chapter"});
+  else if(pgState.scope==="full")pgs=pgs.filter(function(x){return pgScopeOf(x)==="full"});
   /* 搜索：名称 / 备注 / 标签 / 分组 / 类型，输入框本身不重绘避免失焦 */
   var q=String(pgState.q||"").trim().toLowerCase();
   if(q)pgs=pgs.filter(function(x){return pgSearchHay(x).indexOf(q)>=0});
@@ -3044,8 +3244,8 @@ function renderPgPage(){
   $("#pgViewFlow").style.display=pgState.view==="flow"?"":"none";
   list.className=pgState.view==="grid"?"pg-grid":pgState.view==="pills"?"pgpills":pgState.view==="flow"?"pgflowview":"boxrows";
   /* 内容签名：从查看器返回等重复 render 时，数据没变就不重建 DOM（避免缩略图重新加载导致闪一下） */
-  var _sig=JSON.stringify([pgState.view,pgState.grp,q,extSelMode,extSelSet,!!DB.settings.hideTags,extOrgPage,
-    pgs.map(function(x){return [x.id,x.name,String(x.desc||""),(x.tags||[]).join(","),x.star?1:0,x.pinned?1:0,x.pinnedAt||0,String(x.pgroup||""),String(x.svg||"").length,x.ord]})]);
+  var _sig=JSON.stringify([pgState.view,pgState.grp,q,pgState.maker,pgState.scope,extSelMode,extSelSet,!!DB.settings.hideTags,extOrgPage,
+    pgs.map(function(x){return [x.id,x.name,String(x.desc||""),(x.tags||[]).join(","),x.star?1:0,x.pinned?1:0,x.pinnedAt||0,String(x.pgroup||""),String(x.maker||""),String(x.scope||""),String(x.svg||"").length,String(x.cover||"").length,x.ord]})]);
   if(_sig===_pgRenderSig&&list.children.length){
     if(pgState.view==="grid"||pgState.view==="pills")setTimeout(layoutPgMasonry,30);
     return;
@@ -3053,7 +3253,7 @@ function renderPgPage(){
   _pgRenderSig=_sig;
   if(!pgs.length){
     list.className="";
-    list.innerHTML='<div class="empty"><h2>'+(q?'没有匹配「'+esc(String(pgState.q||"").trim())+'」的进度条':pgState.grp==="ug"&&all.length?"没有未分组的进度条":pgState.grp!=="all"&&pgState.grp!=="ug"?"这个分组里还没有进度条":"进度条库是空的")+'</h2><p>点右上角「导入」读取 svg / txt 文件，或「+」新建。条目的 ⋯ 菜单里可以设置分组。</p></div>';
+    list.innerHTML='<div class="empty"><h2>'+(q?'没有匹配「'+esc(String(pgState.q||"").trim())+'」的进度条':pgState.maker==="__none__"&&pgState.grp==="all"?"没有未填写制作者的进度条":pgState.maker&&pgState.maker!=="__none__"&&pgState.grp==="all"?"这个制作者下还没有进度条":pgState.scope==="chapter"&&pgState.grp==="all"&&!pgState.maker?"没有章节进度的进度条":pgState.scope==="full"&&pgState.grp==="all"&&!pgState.maker?"没有全文进度的进度条":pgState.grp==="ug"&&all.length?"没有未分组的进度条":pgState.grp!=="all"&&pgState.grp!=="ug"?"这个分组里还没有进度条":"进度条库是空的")+'</h2><p>点右上角「导入」读取 svg / txt 文件，或「+」新建。条目的 ⋯ 菜单里可以设置分组。</p></div>';
     return;
   }
   list.innerHTML=pgs.map(function(it){return pgItemHTML(it,pgState.view,"pg")}).join("");
@@ -3089,6 +3289,7 @@ function renderStarPage(){
   if(starState.view==="grid"||starState.view==="pills")setTimeout(function(){layoutPgMasonry("starList")},30);
 }
 function openStarPage(){
+  if(selMode)exitSelect();
   if(extOrgPage)exitExtOrg();
   closePgPage();
   renderStarPage();
@@ -3137,12 +3338,27 @@ function svgKind(svg){
   }
   return "其他";
 }
+/* 阅读器进度条模板占位符求值：{w}/{h}/{page}/{= 表达式} 换成示例值。
+   模板在阅读器里才会被填上真值；收纳盒这边识别宽高比和渲染缩略图时先填一组示例值
+   （w=390,h=32，按真机手机屏宽与页眉条高量的，比例约 12:1），
+   否则 viewBox 解析失败会被误判成图标、data URI 解析失败缩略图整张空白。
+   示例值决定预览的胖瘦——填太方的（如 240×80）预览会比真机矮胖很多。 */
+function svgFillTpl(s,W,H){
+  W=W||390;H=H||32;
+  s=String(s||"").replace(/\{=\s*([^{}]*)\}/g,function(_,e){
+    try{return String((new Function("w","h","page","chapterPct","return ("+e+")"))(W,H,1,50))}catch(err){return "0"}
+  });
+  return s.replace(/\{w\}/gi,W).replace(/\{h\}/gi,H).replace(/\{page\}/gi,1);
+}
+function svgHasTpl(s){return /\{=\s*[^{}]*\}|\{\s*w\s*\}|\{\s*h\s*\}/i.test(String(s||""))}
 /* 粘贴 / 导入时自动判定归属：进度条库 or 图标库。
-   ① 带 data-progress 标记的是进度条；② viewBox 或 width/height 宽高比 ≥ 3 的长条形也算进度条；
+   ① 带 data-progress 标记的是进度条；② viewBox 或 width/height 宽高比 ≥ 3 的长条形也算进度条
+   （含 {w}/{h}/{=} 模板占位符的先填示例值再算，避免长条模板被误判成图标）；
    ③ 其余（方形、圆形小图）按单个图标处理。识别错了可在弹层里手动改。 */
 function svgAutoType(svg){
   var s=String(svg||"");
   if(/data-progress\s*=/.test(s))return "progress";
+  if(svgHasTpl(s))s=svgFillTpl(s);
   var vb=s.match(/<svg\b[^>]*viewBox\s*=\s*["']\s*[-\d.]+\s+[-\d.]+\s+([\d.]+)\s+([\d.]+)/i);
   var w=vb?+vb[1]:0,h=vb?+vb[2]:0;
   if(!(w>0&&h>0)){
@@ -3224,37 +3440,42 @@ function renderMinePage(){
     });
   }
 }
-function openMinePage(){ if(extOrgPage&&extOrgPage!=="mine")exitExtOrg(); syncMineSearch(); renderMinePage(); $("#minePage").classList.add("on"); document.body.style.overflow="hidden" }
+function openMinePage(){ if(selMode)exitSelect(); if(extOrgPage&&extOrgPage!=="mine")exitExtOrg(); syncMineSearch(); renderMinePage(); $("#minePage").classList.add("on"); document.body.style.overflow="hidden" }
 function closeMinePage(){ if(extOrgPage==="mine")exitExtOrg(); if(extSelMode==="mine")exitExtSel(); minePageState.q="";syncMineSearch(); $("#minePage").classList.remove("on"); document.body.style.overflow=""; setTimeout(forceRepaint,30) }
-var iconState={grp:"all"};
+var iconState={grp:"all",maker:""};   /* maker：制作者筛选（""=全部），图标库与进度条库同款 */
 function renderIconPage(){
   var list=$("#iconList");if(!list)return;
   var seg=$("#iconGrpSeg");if(seg)seg.innerHTML=grpChipsHTML("icon",iconState.grp,"icgrp","icon");
   var ics0=sortByOrd(DB.items.filter(function(x){return x.type==="icon"}));
   var ics=iconState.grp==="ug"?ics0.filter(function(x){return !String(x.pgroup||"").trim()})
     :iconState.grp==="all"?ics0:ics0.filter(function(x){return String(x.pgroup||"").trim()===iconState.grp});
+  /* 制作者筛选：与进度条库同款；「__none__」= 未归类（没填制作者的图标） */
+  if(iconState.maker==="__none__")ics=ics.filter(function(x){return !String(x.maker||"").trim()});
+  else if(iconState.maker)ics=ics.filter(function(x){return String(x.maker||"").trim()===iconState.maker});
   $("#iconCnt").textContent=ics0.length?("共 "+ics0.length+" 个"):"";
   if(!ics.length){
     list.className="";
-    list.innerHTML='<div class="empty"><h2>'+(iconState.grp==="ug"&&ics0.length?"没有未分组的图标":iconState.grp!=="all"&&iconState.grp!=="ug"?"这个分组里还没有图标":"图标库是空的")+'</h2><p>点右上角「导入」读取 svg / txt 文件，会自动识别是图标还是进度条。条目的 ⋯ 菜单里可以设置分组。</p></div>';
+    list.innerHTML='<div class="empty"><h2>'+(iconState.maker==="__none__"&&iconState.grp==="all"?"没有未填写制作者的图标":iconState.maker&&iconState.maker!=="__none__"&&iconState.grp==="all"?"这个制作者下还没有图标":iconState.grp==="ug"&&ics0.length?"没有未分组的图标":iconState.grp!=="all"&&iconState.grp!=="ug"?"这个分组里还没有图标":"图标库是空的")+'</h2><p>点右上角「导入」读取 svg / txt 文件，会自动识别是图标还是进度条。条目的 ⋯ 菜单里可以设置分组。</p></div>';
     return;
   }
   list.innerHTML='<div class="pg-grid">'+ics.map(function(it){
     return '<article class="pgcard iccard'+(extSelMode==="icon"&&extSelSet[it.id]?" esel-on":"")+((it&&it.pinned)?" pinned":"")+'" data-ic="'+it.id+'">'+CKMARK+
-      '<div class="pgthumb icthumb">'+(it.svg?'<img loading="lazy" draggable="false" src="'+progressThumbUri(it.svg)+'" alt="">':"")+'</div>'+
+      '<div class="pgthumb icthumb">'+((it.cover||it.svg)?'<img loading="lazy" draggable="false" src="'+(it.cover||progressThumbUri(it.svg))+'" alt="">':"")+'</div>'+
       '<div class="icfoot"><div class="name">'+esc(it.name||"未命名")+'</div>'+
       '<button class="more" data-act="menu" aria-label="更多操作" data-id="'+it.id+'">'+
         '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>'+
       '</button></div></article>';
   }).join("")+'</div>';
 }
-function openIconPage(){ if(extOrgPage&&extOrgPage!=="icon")exitExtOrg(); renderIconPage(); $("#iconPage").classList.add("on"); document.body.style.overflow="hidden" }
+function openIconPage(){ if(selMode)exitSelect(); if(extOrgPage&&extOrgPage!=="icon")exitExtOrg(); renderIconPage(); $("#iconPage").classList.add("on"); document.body.style.overflow="hidden" }
 function closeIconPage(){ if(extOrgPage==="icon")exitExtOrg(); if(extSelMode==="icon")exitExtSel(); $("#iconPage").classList.remove("on"); document.body.style.overflow=""; setTimeout(forceRepaint,30) }
 /* 导入 SVG：自动识别图标 / 进度条，也可手动指定 */
 function showSvgImport(prefType){
   openSheet("导入 SVG / TXT",
     '<div class="field"><label for="svgimp-name">名称（留空自动用文件名）</label>'+
     '<input class="input" id="svgimp-name" maxlength="30" placeholder="例如：小星星"></div>'+
+    '<div class="field" style="margin-top:10px"><label for="svgimp-maker">制作者（可选）</label>'+
+    '<input class="input" id="svgimp-maker" maxlength="20" placeholder="例如：某某"></div>'+
     '<button class="btn-ghost" style="height:44px;justify-content:center" data-act="svgimp-file">选择 TXT / SVG 文件（可多选）</button>'+
     '<div class="field" style="margin-top:10px"><label for="svgimp-text">或粘贴 SVG 源码</label>'+
     '<textarea class="input" id="svgimp-text" rows="6" spellcheck="false" placeholder="&lt;svg&gt;…&lt;/svg&gt;" style="font-family:ui-monospace,monospace;font-size:11px;line-height:1.5"></textarea></div>'+
@@ -3263,19 +3484,40 @@ function showSvgImport(prefType){
     '<button class="btn-ghost" data-act="svgimp-kind" data-k="auto" id="svgimpAuto">自动识别</button>'+
     '<button class="btn-ghost" data-act="svgimp-kind" data-k="icon">单个图标</button>'+
     '<button class="btn-ghost" data-act="svgimp-kind" data-k="progress">进度条</button>'+
-    '</div><p class="hint" style="margin:8px 0 0;font-size:11.5px">默认按内容自动识别是进度条还是图标，收进对应的库；可一次选多个文件批量导入，识别错了点上面按钮手动改。</p></div>',
+    '</div><p class="hint" style="margin:8px 0 0;font-size:11.5px">默认按内容自动识别是进度条还是图标，收进对应的库；可一次选多个文件批量导入，识别错了点上面按钮手动改。填写制作者后，进度条卡片标签行最前面会显示制作者特殊标签，可在分组筛选弹层里按制作者筛选。</p></div>'+
+    '<div class="field" style="margin-top:10px"><label>进度类型<span class="svgimp-hint" id="svgimpScopeGuess"></span></label>'+
+    '<div class="svgimp-kinds">'+
+    '<button class="btn-ghost" data-act="svgimp-scope" data-k="auto" id="svgimpScopeAuto">自动识别</button>'+
+    '<button class="btn-ghost" data-act="svgimp-scope" data-k="full">全文进度</button>'+
+    '<button class="btn-ghost" data-act="svgimp-scope" data-k="chapter">章节进度</button>'+
+    '</div><p class="hint" style="margin:8px 0 0;font-size:11.5px">导入进度条时按源码里的「章 / 页码 / 全文」等字样自动判断是章节进度还是全文进度，万一识别错误点上面按钮手动改；之后也能在进度条 ⋯ 菜单「设置进度类型」里改。分组筛选弹层里可按进度类型筛选。</p></div>',
     '<button class="btn-ghost" data-act="sheet-cancel">取消</button>'+
     '<button class="btn-primary" style="width:auto;padding:0 16px" data-act="confirm-svgimp">保存</button>');
   svgimpKind=prefType||"auto";
   svgimpPref= prefType||"";
+  svgimpScope="auto";
   var ta=$("#svgimp-text");if(ta)ta.addEventListener("input",svgimpUpdateGuess);
+  /* 预填上一次用的制作者，连续导入同一作者的多条进度条不用重复输入 */
+  var mi=$("#svgimp-maker");
+  if(mi){try{mi.value=localStorage.getItem("hb.lastMaker")||""}catch(e){}}
   svgimpUpdateGuess();
   syncSvgimpKind();
 }
-var svgimpKind="auto", svgimpPref="";
+/* 读取导入弹层里的制作者输入；留空返回 "" */
+function svgimpMakerVal(){
+  var mi=$("#svgimp-maker");
+  return mi?String(mi.value||"").trim().slice(0,20):"";
+}
+function rememberMaker(mk){
+  try{ if(mk)localStorage.setItem("hb.lastMaker",mk); else localStorage.removeItem("hb.lastMaker") }catch(e){}
+}
+var svgimpKind="auto", svgimpPref="", svgimpScope="auto";
 function syncSvgimpKind(){
   document.querySelectorAll("[data-act='svgimp-kind']").forEach(function(x){
     x.classList.toggle("on",x.getAttribute("data-k")===svgimpKind);
+  });
+  document.querySelectorAll("[data-act='svgimp-scope']").forEach(function(x){
+    x.classList.toggle("on",x.getAttribute("data-k")===svgimpScope);
   });
 }
 function svgimpCurrentSvg(){
@@ -3285,12 +3527,18 @@ function svgimpCurrentSvg(){
 function svgimpUpdateGuess(){
   var g=$("#svgimpGuess");if(!g)return;
   var svg=svgimpCurrentSvg();
-  g.textContent=svg?("识别为："+(svgAutoType(svg)==="icon"?"单个图标":"进度条")):"粘贴源码后自动判断";
+  if(!svg){g.textContent="粘贴源码后自动判断";var _sg0=$("#svgimpScopeGuess");if(_sg0)_sg0.textContent="";return}
+  var k=svgAutoType(svg);
+  g.textContent=svg?("识别为："+(k==="icon"?"单个图标":"进度条")):"";
+  var sg=$("#svgimpScopeGuess");
+  if(sg)sg.textContent=(k==="progress")?(svgGuessScope(svg)==="chapter"?"（识别为：章节进度）":"（识别为：全文进度）"):"";
 }
 /* 多选文件批量导入：每个文件独立解析 <svg>…、自动判定类型、用文件名命名 */
 function importSvgFiles(files,closeAfter){
   var arr=Array.prototype.slice.call(files||[]);
   if(!arr.length)return;
+  var bulkMaker=svgimpMakerVal();
+  rememberMaker(bulkMaker);
   var left=arr.length,nP=0,nI=0,nBad=0;
   var done=function(){
     save();render();
@@ -3309,7 +3557,10 @@ function importSvgFiles(files,closeAfter){
         var base=String(f.name||"").replace(/\.(txt|svg|text|html?)$/i,"").trim().slice(0,30)||"未命名";
         var k=svgAutoType(svg);
         if(k==="progress")nP++;else nI++;
-        DB.items.unshift(normalize({name:base,type:k,svg:svg,size:svg.length}));
+        var ni={name:base,type:k,svg:svg,size:svg.length};
+        if(bulkMaker)ni.maker=bulkMaker;   /* 弹层里填了制作者时，批量导入的全部应用 */
+        if(k==="progress")ni.scope=(svgimpScope==="auto")?svgGuessScope(svg):svgimpScope;   /* 进度类型：自动识别或手动指定 */
+        DB.items.unshift(normalize(ni));
       }else nBad++;
       tick();
     };
@@ -3347,12 +3598,19 @@ function doSvgImport(){
   var ni=$("#svgimp-name");
   var name=(ni&&ni.value?ni.value.trim():"")||svgimpName||"";
   if(!name)name=(kind==="icon"?"图标":"进度条")+new Date().toISOString().slice(5,10).replace("-","");
+  var mk=svgimpMakerVal();
+  rememberMaker(mk);
   if(kind==="icon"){
-    DB.items.unshift(normalize({name:name,type:"icon",svg:svg,size:svg.length}));
+    var io={name:name,type:"icon",svg:svg,size:svg.length};
+    if(mk)io.maker=mk;
+    DB.items.unshift(normalize(io));
     toast("已收藏图标「"+name+"」");
   }else{
-    DB.items.unshift(normalize({name:name,type:"progress",svg:svg,size:svg.length}));
-    toast("已收藏进度条「"+name+"」");
+    var po={name:name,type:"progress",svg:svg,size:svg.length};
+    if(mk)po.maker=mk;
+    po.scope=(svgimpScope==="auto")?svgGuessScope(svg):svgimpScope;   /* 进度类型：自动识别或手动指定 */
+    DB.items.unshift(normalize(po));
+    toast("已收藏进度条「"+name+"」"+(mk?"（制作者："+mk+"）":"")+"（"+(po.scope==="chapter"?"章节进度":"全文进度")+"）");
   }
   svgimpName="";
   save();render();closeSheet();
@@ -3360,7 +3618,7 @@ function doSvgImport(){
   if($("#iconPage").classList.contains("on"))renderIconPage();
   if($("#starPage")&&$("#starPage").classList.contains("on"))renderStarPage();
 }
-function openPgPage(){ if(extOrgPage&&extOrgPage!=="pg")exitExtOrg(); syncPgSearch(); renderPgPage(); $("#pgPage").classList.add("on"); document.body.style.overflow="hidden"; setTimeout(layoutPgMasonry,60); setTimeout(layoutPgMasonry,350) }
+function openPgPage(){ if(selMode)exitSelect(); if(extOrgPage&&extOrgPage!=="pg")exitExtOrg(); syncPgSearch(); renderPgPage(); $("#pgPage").classList.add("on"); document.body.style.overflow="hidden"; setTimeout(layoutPgMasonry,60); setTimeout(layoutPgMasonry,350) }
 function closePgPage(){ if(extOrgPage==="pg")exitExtOrg(); if(extSelMode==="pg")exitExtSel(); $("#pgPage").classList.remove("on"); document.body.style.overflow=""; setTimeout(forceRepaint,30) }
 var boxState={view:"grid",grp:"all",q:""};
 function boxItem(bi){return (curBundle&&Array.isArray(curBundle.items))?curBundle.items[bi]:null}
@@ -3395,7 +3653,11 @@ function boxGroupNames(){
 function showBoxGroupSheet(bi){
   var it=boxItem(bi);if(!it)return;
   var cur=String(it.pgroup||"").trim();
-  var gs=boxGroupNames().filter(function(g){return g!==cur});
+  /* 同样合并「新建分组」建的空分组（extraGroups.box），新建后可直接点选 */
+  var ex=DB.settings.extraGroups&&DB.settings.extraGroups.box;
+  var gs=boxGroupNames();
+  if(Array.isArray(ex))ex.forEach(function(g){g=String(g||"").trim();if(g&&gs.indexOf(g)<0)gs.push(g)});
+  gs=gs.filter(function(g){return g!==cur});
   var body='<div class="field"><label for="bg-name">分组名称（留空 = 不分组）</label>'+
     '<input class="input" id="bg-name" value="'+esc(cur)+'" placeholder="例如：常用 / 素材"></div>'+
     (gs.length?'<div class="field"><label>已有分组（点一下填入）</label><div style="display:flex;flex-wrap:wrap;gap:8px">'+
@@ -3476,6 +3738,7 @@ function syncBoxSearch(){
   if(inp&&inp.value!==boxState.q)inp.value=boxState.q;
 }
 function openBoxPage(b,initialQ){
+  if(selMode)exitSelect();
   if(extOrgPage&&extOrgPage!=="box")exitExtOrg();
   curBundle=b;
   boxState.q=String(initialQ||"").trim();boxState.grp="all";
@@ -4281,6 +4544,8 @@ function showMenu(x,y,id,ctx){
       '<button data-mact="pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z"/></svg>'+(it.pinned?"取消置顶":"置顶")+'</button>'+
       '<button data-mact="export"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>导出文件</button>'+
       '<button data-mact="pgroup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M4 12h16M4 18h9"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/></svg>设置分组</button>'+
+      '<button data-mact="cover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>'+(it.cover?"更换封面":"上传封面")+'</button>'+
+      (it.cover?'<button data-mact="cover-del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>移除封面</button>':"")+
       '<div class="sep"></div>'+
       '<button data-mact="del" class="danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>删除</button>';
   }else
@@ -4291,8 +4556,11 @@ function showMenu(x,y,id,ctx){
     '<button data-mact="pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z"/></svg>'+(it.pinned?"取消置顶":"置顶")+'</button>'+
     '<button data-mact="mine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.3.9-4.5 4.3 1 6.2-5.5-3-5.5 3 1-6.2L3 9.5l6.3-.9Z"/></svg>'+(it.mine?"移出我的工具":"加入我的工具")+'</button>'+
     (it.type==="progress"?'<button data-mact="star">'+STAR_SVG+(it.star?"取消收藏":"收藏到星标")+'</button>':"")+
+    (it.type==="progress"?'<button data-mact="cover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>'+(it.cover?"更换封面":"上传封面")+'</button>'+(it.cover?'<button data-mact="cover-del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>移除封面</button>':""):"")+
     '<button data-mact="move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>移动到文件夹</button>'+
     (it.type==="progress"||it.mine?'<button data-mact="pgroup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M4 12h16M4 18h9"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/></svg>设置分组</button>':"")+
+    (it.type==="progress"||it.type==="icon"?'<button data-mact="maker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>'+(it.maker?"设置制作者（"+esc(String(it.maker).slice(0,8))+"）":"设置制作者")+'</button>':"")+
+    (it.type==="progress"?'<button data-mact="scope"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg>'+(pgScopeOf(it)==="chapter"?"进度类型（章节进度）":"进度类型（全文进度）")+'</button>':"")+
     (it.type!=="ref"?'<button data-mact="export"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>导出文件</button>':"")+
     (isWebLink(it)?'<button data-mact="copylink" data-url="'+esc(it.path)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>复制链接</button>':"")+
     '<div class="sep"></div>'+
@@ -4341,7 +4609,11 @@ $("#menu").addEventListener("click",function(e){
   if(act==="pin"){ it.pinned=!it.pinned;it.pinnedAt=it.pinned?Date.now():0;save();render();toast(it.pinned?"已置顶，排到最前面":"已取消置顶") }
   if(act==="mine"){ it.mine=it.mine?0:1;save();render();toast(it.mine?"已加入「我的工具」":"已移出「我的工具」") }
   if(act==="star"){ toggleStar(id) }
+  if(act==="cover"){ pickCover(id) }
+  if(act==="cover-del"){ it.cover="";delete it.cover;save();render();toast("已移除封面，恢复默认缩略图") }
   if(act==="pgroup"){ showGroupSheet(id) }
+  if(act==="maker"){ showMakerSheet(id) }
+  if(act==="scope"){ showScopeSheet(id) }
   if(act==="move"){ selSet={};selSet[id]=true;showMoveSheet() }
   if(act==="export"){ exportItem(it) }
   if(act==="copylink"){
@@ -4353,12 +4625,155 @@ $("#menu").addEventListener("click",function(e){
   if(act==="del"){ showDelete(id) }
 });
 
+/* ---------------------- 自定义封面（进度条库 / 图标库） ---------------------- */
+/* 给进度条 / 图标上传一张自己的封面图，列表缩略图优先显示封面（⋯ 菜单里可更换 / 移除）。
+   封面压缩到最长边 640px 存 IndexedDB，随备份一起导出导入 */
+function pickCover(id){
+  var inp=document.createElement("input");
+  inp.type="file";inp.accept="image/*";
+  inp.onchange=function(){
+    var f=inp.files&&inp.files[0];inp.remove();
+    if(!f)return;
+    if(!/^image\//.test(f.type)){toast("请选择图片文件");return}
+    toast("正在处理封面…",1600);
+    var fr=new FileReader();
+    fr.onload=function(){
+      var img=new Image();
+      img.onload=function(){
+        try{
+          var W=img.naturalWidth||img.width,H=img.naturalHeight||img.height;
+          if(!(W>0&&H>0)){toast("图片读取失败");return}
+          var k=Math.min(1,640/Math.max(W,H));
+          var cv=document.createElement("canvas");
+          cv.width=Math.max(1,Math.round(W*k));cv.height=Math.max(1,Math.round(H*k));
+          var cx=cv.getContext("2d");cx.drawImage(img,0,0,cv.width,cv.height);
+          var url;
+          try{url=cv.toDataURL(f.type==="image/png"||f.type==="image/webp"?f.type:"image/jpeg",0.85)}catch(e){url=null}
+          if(!url){toast("图片处理失败");return}
+          var it=DB.items.find(function(a){return a.id===id});
+          if(!it)return;
+          it.cover=url;it.coverAt=Date.now();
+          save();_pgRenderSig="";render();
+          toast("封面已更新");
+        }catch(e){toast("图片处理失败")}
+      };
+      img.onerror=function(){toast("图片读取失败")};
+      img.src=String(fr.result||"");
+    };
+    fr.readAsDataURL(f);
+  };
+  inp.click();
+}
+
+/* ---------------------- 批量设置制作者（进度条库 / 图标库多选） ---------------------- */
+/* 多选条上「设置制作者」：一次把勾选的进度条 / 图标改成同一个制作者，留空则批量清除 */
+function showBatchMakerSheet(){
+  var its=extSelItems();
+  if(!its.length){toast("先勾选要修改的"+(extSelMode==="icon"?"图标":"进度条"));return}
+  openSheet("批量设置制作者（"+its.length+" 项）",
+    '<div class="field"><label for="bmk-name">制作者名字（留空 = 清除已选项目的制作者）</label>'+
+    '<input class="input" id="bmk-name" maxlength="20" value="" placeholder="例如：某某"></div>'+
+    '<p class="hint">只修改勾选的 '+its.length+' 个'+(extSelMode==="icon"?"图标":"进度条")+'，其他项目不受影响。输入框每次都是空的，可直接填；留空保存则清除这些项目的制作者。</p>',
+    '<button class="btn-ghost" data-act="sheet-cancel">取消</button>'+
+    '<button class="btn-primary" style="width:auto;padding:0 16px" data-act="esel-maker-go">保存</button>');
+}
+function doBatchMakerSave(){
+  var its=extSelItems();
+  if(!its.length){closeSheet();return}
+  var el=$("#bmk-name"),v=el?String(el.value||"").trim().slice(0,20):"";
+  its.forEach(function(it){if(v)it.maker=v;else delete it.maker});
+  rememberMaker(v);
+  save();render();extSelPageRerender();closeSheet();
+  toast("已为 "+its.length+" 项"+(v?"设置制作者："+v:"清除制作者"));
+}
+/* ---------------------- 批量移动分组（进度条库 / 图标库 / 我的 / 星标 多选） ---------------------- */
+/* 多选条上「移动分组」：一次把勾选条目归到同一分组，留空则移出分组（未分组）。
+   与单选「设置分组」共用同一套分组列表（已用分组 + 新建的空分组） */
+function showBatchGroupSheet(){
+  var its=extSelItems();
+  if(!its.length){toast("先勾选要移动的项目");return}
+  var page=extSelMode;
+  var type=page==="icon"?"icon":(page==="mine"?"mine":"progress");
+  var pgKey=type==="progress"?"pg":type;
+  var ex=DB.settings.extraGroups&&DB.settings.extraGroups[pgKey];
+  var gs=groupNames(type);
+  if(Array.isArray(ex))ex.forEach(function(g){g=String(g||"").trim();if(g&&gs.indexOf(g)<0)gs.push(g)});
+  var label=type==="icon"?"图标":type==="mine"?"工具":"进度条";
+  openSheet("批量移动分组（"+its.length+" 项）",
+    '<div class="field"><label for="bg-name">目标分组（留空 = 移出分组 / 未分组）</label>'+
+    '<input class="input" id="bg-name" maxlength="24" value="" placeholder="例如：章节 / 常用"></div>'+
+    (gs.length?'<div class="field"><label>已有分组（点一下填入）</label><div style="display:flex;flex-wrap:wrap;gap:8px">'+
+      gs.map(function(g){return '<button class="btn-ghost" style="width:auto;height:36px;padding:0 12px" data-bsetgrp="'+esc(g)+'">'+esc(g)+'</button>'}).join("")+
+      '</div></div>':"")+
+    '<p class="hint">只移动勾选的 '+its.length+' 个'+label+'到同一个分组，其他项目不受影响；留空保存则把这些项目移出分组。</p>',
+    '<button class="btn-ghost" data-act="sheet-cancel">取消</button>'+
+    '<button class="btn-primary" style="width:auto;padding:0 16px" data-act="esel-grp-go">保存</button>');
+}
+function doBatchGroupSave(){
+  var its=extSelItems();
+  if(!its.length){closeSheet();return}
+  var el=$("#bg-name"),g=el?String(el.value||"").trim().slice(0,24):"";
+  its.forEach(function(it){if(g)it.pgroup=g;else delete it.pgroup});
+  save();render();extSelPageRerender();closeSheet();
+  toast("已把 "+its.length+" 项"+(g?"移入分组「"+g+"」":"移出分组"));
+}
+/* ---------------------- 制作者（进度条库 / 图标库） ---------------------- */
+/* 每条条目一个制作者名字：卡片标签行最前面显示制作者特殊标签，
+   分组筛选弹层里可按制作者筛选；导入 SVG 时也可直接填写 */
+function showMakerSheet(id){
+  var it=DB.items.find(function(a){return a.id===id});if(!it)return;
+  openSheet("设置制作者",
+    '<div class="field"><label for="mk-name">制作者名字（留空清除）</label>'+
+    '<input class="input" id="mk-name" maxlength="20" value="'+esc(String(it.maker||""))+'" placeholder="例如：某某"></div>'+
+    '<p class="hint">保存后，这张卡片标签行最前面会显示制作者特殊标签（与普通标签样式区分）；在进度条库 / 图标库「分组筛选」弹层里可以按制作者筛选。</p>',
+    '<button class="btn-ghost" data-act="sheet-cancel">取消</button>'+
+    '<button class="btn-primary" style="width:auto;padding:0 16px" data-act="maker-go" data-mkid="'+esc(id)+'">保存</button>');
+}
+function doMakerSave(id){
+  var it=DB.items.find(function(a){return a.id===id});if(!it)return;
+  var el=$("#mk-name"),v=el?String(el.value||"").trim().slice(0,20):"";
+  if(v)it.maker=v;else delete it.maker;
+  save();
+  if($("#pgPage").classList.contains("on"))renderPgPage();
+  if($("#iconPage").classList.contains("on"))renderIconPage();
+  if($("#starPage")&&$("#starPage").classList.contains("on"))renderStarPage();
+  closeSheet();
+  toast(v?"已设置制作者："+v:"已清除制作者");
+}
+/* ---------------------- 进度类型（进度条库：全文进度 / 章节进度） ---------------------- */
+/* 导入时自动识别或手动选择；之后也能在 ⋯ 菜单里改。分组筛选弹层里可按进度类型筛选 */
+function showScopeSheet(id){
+  var it=DB.items.find(function(a){return a.id===id});if(!it)return;
+  var cur=pgScopeOf(it);
+  openSheet("设置进度类型",
+    '<div class="svgimp-kinds">'+
+    '<button class="btn-ghost'+(cur==="full"?" on":"")+'" data-act="scope-set" data-v="full" data-sid="'+esc(id)+'">全文进度</button>'+
+    '<button class="btn-ghost'+(cur==="chapter"?" on":"")+'" data-act="scope-set" data-v="chapter" data-sid="'+esc(id)+'">章节进度</button>'+
+    '</div>'+
+    '<p class="hint" style="margin-top:10px">「全文进度」按整本书的百分比走（如 36.5%），「章节进度」按章内页码或章节进度走。保存后可在进度条库「分组筛选」弹层里按进度类型筛选。</p>',
+    '<button class="btn-ghost" data-act="sheet-cancel">取消</button>');
+}
+function doScopeSet(id,v){
+  var it=DB.items.find(function(a){return a.id===id});if(!it)return;
+  it.scope=(v==="chapter")?"chapter":"full";
+  save();
+  if($("#pgPage").classList.contains("on"))renderPgPage();
+  if($("#starPage")&&$("#starPage").classList.contains("on"))renderStarPage();
+  closeSheet();
+  toast(it.scope==="chapter"?"已设为章节进度":"已设为全文进度");
+}
 /* ---------------------- 分组（进度条库 / 图标库） ---------------------- */
 function showGroupSheet(id){
   var it=DB.items.find(function(a){return a.id===id});if(!it)return;
   var type=it.type==="icon"?"icon":(it.mine?"mine":"progress");
   var cur=String(it.pgroup||"").trim();
-  var gs=groupNames(type).filter(function(g){return g!==cur});
+  /* 已有分组 = 已被文件使用的分组 + 分组筛选里「新建分组」建的空分组（extraGroups），
+     否则新建的空分组在这里不出现，只能重新手输名字 */
+  var pgKey=type==="progress"?"pg":type;
+  var ex=DB.settings.extraGroups&&DB.settings.extraGroups[pgKey];
+  var gs=groupNames(type);
+  if(Array.isArray(ex))ex.forEach(function(g){g=String(g||"").trim();if(g&&gs.indexOf(g)<0)gs.push(g)});
+  gs=gs.filter(function(g){return g!==cur});
   var body='<div class="field"><label for="g-name">分组名称（留空 = 不分组）</label>'+
     '<input class="input" id="g-name" value="'+esc(cur)+'" placeholder="例如：章节 / 电池 / 常用"></div>'+
     (gs.length?'<div class="field"><label>已有分组（点一下填入）</label><div style="display:flex;flex-wrap:wrap;gap:8px">'+
@@ -4431,7 +4846,7 @@ function showHelp(){
     '<li>在系统分享面板选<b>存储到“文件”</b>，存一份 <span class="kbd">收纳盒备份.html</span>；</li>'+
     '<li>已存在同名文件时 iOS 会提示「<b>替换</b>」，点替换即完成更新备份。</li></ol>'+
     '<p class="hint">日常不导出也不影响使用；但换设备、清数据、删图标之前，先确认备份是最新的。</p>'+
-    '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg><div><b>怎么判断备份是否正常：</b>如果导出的备份文件只有 <b>380KB</b> 左右（基本就是一个空的收纳盒骨架，里面没有工具内容），说明它是<strong>错误文件</strong>（旧缓存版本导出的）。解决方法：先在浏览器里刷新一次网站，再彻底关闭并重开桌面图标后重新导出；仍不行就删除桌面图标、在浏览器重新「添加到主屏幕」。正常的备份会更大，具体取决于你收藏了多少工具。</div></div>'+
+    '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg><div><b>怎么判断备份是否正常：</b>如果导出的备份文件只有 <b>430KB</b> 左右（基本就是一个空的收纳盒骨架，里面没有工具内容），说明它是<strong>错误文件</strong>（旧缓存版本导出的）。解决方法：先在浏览器里刷新一次网站，再彻底关闭并重开桌面图标后重新导出；仍不行就删除桌面图标、在浏览器重新「添加到主屏幕」。正常的备份会更大，具体取决于你收藏了多少工具。</div></div>'+
     '<h2>换设备 / 数据丢失后恢复</h2>'+
     '<ol><li>打开收纳盒（在线链接或新文件）；</li>'+
     '<li>点「添加」→<b>选择 HTML 文件</b>，选中之前备份的 <span class="kbd">收纳盒备份.html</span>，里面的工具会被识别恢复；</li>'+
@@ -4443,7 +4858,10 @@ function showHelp(){
     '<li><b>「全部 / 已打包 / 链接」筛选 + 文件夹归类</b>，工具多也不乱；我的工具 / 进度条库 / 图标库三个入口在文件夹行最前面，不与其他文件混在一起；<b>移动弹层默认只列主文件夹</b>，含子文件夹的主文件夹右侧会带一个「▸」小按钮，点它才展开自己的子文件夹（没有子文件夹的不显示按钮），且按「主文件夹 → 它自己的子文件夹」缩进排好，不会散在列表末尾；<b>整理</b>状态下主文件夹上的「移入」小按钮，可把它直接移到别的主文件夹里变成子文件夹（也可多选勾选主文件夹后点「移动到…」）；移动弹层最上面新增<b>「我的工具」</b>目标，选它可直接加入我的工具，主页面多选栏不再单独放「加入我的」按钮；</li>'+
     '<li>多选后点「导出」：可单独导出多个文件，或打包成一个迷你收纳盒 HTML（再导入时可选拆分或变成盒中盒）；</li>'+
     '<li>卡片若出现橙色<b>“缺内容”</b>标签，表示该工具的正文不在当前文件里，重新导入一次即可；</li>'+
-    '<li>各库工具行的<b>漏斗</b>可展开全部分组、把常用分组置顶，点「编辑」还能重命名 / 删除 / 拖动排序，点「＋ 新建分组」可直接建空分组（弹层高度保持不变，不会上下跳）；<b>视图按钮</b>循环切换排列方式（进度条库 / 星标页可在预览网格 / 单行列表 / 三列 / 流动胶囊之间切换，流动胶囊宽度随文字走）；</li><li><b>整理排序</b>：我的工具 / 进度条库 / 图标库 / 盒中盒工具行都有「整理」按钮，点开后<b>长按卡片直接拖动</b>就能改顺序，顺序会保存下来，再点一次「整理」退出；主页面的整理按钮用法一样；</li>'+
+    '<li>各库工具行的<b>漏斗</b>可展开全部分组、把常用分组置顶，点「编辑」还能重命名 / 删除 / 拖动排序，点「＋ 新建分组」可直接建空分组（建好就立刻出现在 ⋯ 菜单「设置分组」里，点一下即可填入，不用重新手输）；<b>视图按钮</b>循环切换排列方式（进度条库 / 星标页可在预览网格 / 单行列表 / 三列 / 流动胶囊之间切换，流动胶囊宽度随文字走）；</li><li><b>整理排序</b>：我的工具 / 进度条库 / 图标库 / 盒中盒工具行都有「整理」按钮，点开后<b>长按卡片直接拖动</b>就能改顺序，顺序会保存下来，再点一次「整理」退出；主页面的整理按钮用法一样；</li>'+
+    '<li><b>制作者（进度条库 / 图标库）</b>：导入时可填制作者，或点条目 ⋯ 菜单「设置制作者」、多选后点「设置制作者」<b>批量改</b>（留空即清除）；标签显示在卡片最前面，只写名字不带 @；没填制作者的在筛选里归入「未归类」（为 0 时自动隐藏）。漏斗「分组筛选」弹层点「编辑」可切「<b>编辑分组 / 编辑制作者</b>」：编辑制作者时可 ✎ <b>重命名</b>（该制作者下全部条目同步改名）、长按 ⠿ <b>拖动排序</b>；需给进度条 / 图标单独换缩略图，用 ⋯ 菜单「上传封面」（自动压缩、随备份走，可更换 / 移除）；</li>'+
+    '<li><b>批量移动分组</b>：进度条库 / 图标库 / 我的工具 / 星标页点「多选」勾选后，点「<b>移动分组</b>」一次把勾选项归到同一分组（点已有分组可快速填入，留空即移出分组）；盒中盒里的「移动到…」是把文件抽到外面的文件夹，两者不同。主页面多选时进入这些库会自动退出主页面多选；</li>'+
+    '<li><b>全文 / 章节进度</b>：导入 SVG 进度条会按源码里的「章 / 页码 / 全文」等字样自动识别类型，弹层会显示识别结果；怕识别错可在导入弹层「进度类型」一行手动选，导入后也能在 ⋯ 菜单「设置进度类型」随时改；进度条库「分组筛选」弹层的「进度类型」区可按全文 / 章节筛选，搜索「章节 / 全文」也能按类型搜；</li>'+
     '<li><b>导入</b>：点「添加」→「粘贴 / 导入 SVG」或选文件（可多选），会按内容自动识别进度条 / 图标并收进对应库；多选时<b>子文件夹也能勾选</b>，移动 / 导出会自动带上文件夹里的全部内容；</li>'+
     '<li>「设置 → 查重」找出重复的网址和内容相同的文件（盒中盒里的也一起查，位置会标出所属盒中盒），核对位置后勾选删除；</li>'+
     '<li>数据保存在浏览器本地：不要清除本站数据、不要删除主屏幕图标。</li></ul>'+
@@ -4490,6 +4908,16 @@ document.addEventListener("click",function(e){
   if(gfng){gfNewGo(gfng.getAttribute("data-gfpage"));return}
   var gfe=t.closest('[data-act="gf-edit"]');
   if(gfe){var _pe=gfe.getAttribute("data-gfpage");gfEdit[_pe]=!gfEdit[_pe];showGroupFilter(_pe);return}
+  var gfet=t.closest('[data-act="gf-edittgt"]');
+  if(gfet){
+    var _pet=gfet.getAttribute("data-gfpage");
+    gfEditTarget[_pet]=gfet.getAttribute("data-v")==="mk"?"mk":"grp";
+    showGroupFilter(_pet);return;
+  }
+  var gfmkr=t.closest('[data-act="gf-mk-rename"]');
+  if(gfmkr){gfMkRenameSheet(gfmkr.getAttribute("data-gfpage"),gfmkr.getAttribute("data-mkname"));return}
+  var gfmkrg=t.closest('[data-act="gf-mk-rename-go"]');
+  if(gfmkrg){gfMkRenameGo(gfmkrg.getAttribute("data-gfpage"),gfmkrg.getAttribute("data-mkname"));return}
   var gfr=t.closest('[data-act="gf-rename"]');
   if(gfr){gfRenameSheet(gfr.getAttribute("data-gfpage"),gfr.getAttribute("data-gfname"));return}
   var gfd=t.closest('[data-act="gf-del"]');
@@ -4508,6 +4936,40 @@ document.addEventListener("click",function(e){
   if(gfpin){ gfTogglePin(gfpin.getAttribute("data-gfpage"),gfpin.getAttribute("data-gfpin")); return }
   var gfall=t.closest('[data-act="gf-showall"]');
   if(gfall){ gfShowAll(gfall.getAttribute("data-gfpage")); return }
+  /* 分组筛选弹层：行式 ⇄ 流动胶囊排列（编辑中点切换会先退出编辑） */
+  var gflay=t.closest('[data-act="gf-layout"]');
+  if(gflay){
+    var _lp=gflay.getAttribute("data-gfpage");
+    DB.settings.gfLayout=(DB.settings.gfLayout==="pills")?"rows":"pills";
+    gfEdit[_lp]=false;save();showGroupFilter(_lp);
+    toast(DB.settings.gfLayout==="pills"?"已切换到胶囊排列":"已切换到列表排列");
+    return;
+  }
+  /* 进度条库 / 图标库 · 制作者筛选：点制作者胶囊即筛选；「未归类」= 没填制作者的 */
+  var gfmk=t.closest("[data-gfmk]");
+  if(gfmk){
+    var _mkv=gfmk.getAttribute("data-gfmk"),_mkp=gfmk.getAttribute("data-gfpage")||"pg";
+    if(_mkp==="icon")iconState.maker=_mkv;else pgState.maker=_mkv;
+    gfRerender(_mkp);closeSheet();
+    toast(_mkv==="__none__"?("已筛选未填写制作者的"+(_mkp==="icon"?"图标":"进度条")):("已筛选制作者："+_mkv));
+    return;
+  }
+  var gfmkc=t.closest('[data-act="gf-mk-clear"]');
+  if(gfmkc){
+    var _mkcp=gfmkc.getAttribute("data-gfpage")||"pg";
+    if(_mkcp==="icon")iconState.maker="";else pgState.maker="";
+    gfRerender(_mkcp);closeSheet();toast("已显示全部制作者");return;
+  }
+  /* 进度条库 · 进度类型筛选：全文进度 / 章节进度 */
+  var gfsc=t.closest("[data-gfsc]");
+  if(gfsc){
+    pgState.scope=gfsc.getAttribute("data-gfsc")||"";
+    gfRerender("pg");closeSheet();
+    toast(pgState.scope==="chapter"?"已筛选章节进度":"已筛选全文进度");
+    return;
+  }
+  var gfscc=t.closest('[data-act="gf-sc-clear"]');
+  if(gfscc){ pgState.scope=""; gfRerender("pg"); closeSheet(); toast("已显示全部进度类型"); return }
   // 卡片菜单按钮
   var more=t.closest('[data-act="menu"]');
   if(more){
@@ -4531,6 +4993,8 @@ document.addEventListener("click",function(e){
   // 分组弹窗：点已有分组名直接填入输入框
   var sg=t.closest("[data-setgrp]");
   if(sg){var gi=$("#g-name");if(gi)gi.value=sg.getAttribute("data-setgrp");return}
+  var bsg=t.closest("[data-bsetgrp]");
+  if(bsg){var bi=$("#bg-name");if(bi)bi.value=bsg.getAttribute("data-bsetgrp");return}
   // 文件夹行里的三个独立入口：我的工具 / 进度条库 / 图标库
   var emb=t.closest("#btnMine");
   if(emb){openMinePage();return}
@@ -4662,6 +5126,10 @@ if(t.closest('[data-act="exp-pack-box"]')){doSelExportPack();return}
   if(t.closest('[data-act="esel-exit"]')){exitExtSel();return}
   if(t.closest('[data-act="esel-all"]')){extSelAll();return}
   if(t.closest('[data-act="esel-export"]')){showExtExport();return}
+  if(t.closest('[data-act="esel-maker"]')){showBatchMakerSheet();return}
+  if(t.closest('[data-act="esel-maker-go"]')){doBatchMakerSave();return}
+  if(t.closest('[data-act="esel-grp"]')){showBatchGroupSheet();return}
+  if(t.closest('[data-act="esel-grp-go"]')){doBatchGroupSave();return}
   if(t.closest('[data-act="esel-move"]')){showBoxSelMoveSheet();return}
   if(t.closest('[data-act="esel-del"]')){extSelDeleteConfirm();return}
   if(t.closest('[data-act="esel-del-go"]')){extSelDeleteGo();return}
@@ -4738,6 +5206,10 @@ if(t.closest('[data-act="exp-pack-box"]')){doSelExportPack();return}
       svgimpKind=btn.getAttribute("data-k")||"auto";
       syncSvgimpKind();
       break;
+    case "svgimp-scope":
+      svgimpScope=btn.getAttribute("data-k")||"auto";
+      syncSvgimpKind();
+      break;
     case "confirm-svgimp": doSvgImport(); break;
     case "confirm-link": doLinkAdd(); break;
     case "confirm-folder": confirmNewFolder(); break;
@@ -4763,6 +5235,8 @@ if(t.closest('[data-act="exp-pack-box"]')){doSelExportPack();return}
     case "save-manifest": saveManifest(); break;
     case "save-edit": saveEdit(); break;
     case "save-grp": saveGroupSheet(); break;
+    case "maker-go": doMakerSave(btn.getAttribute("data-mkid")); break;
+    case "scope-set": doScopeSet(btn.getAttribute("data-sid"),btn.getAttribute("data-v")); break;
     case "save-box-grp": saveBoxGroupSheet(); break;
     case "save-box-edit": saveBoxEdit(); break;
     case "confirm-box-del": deleteBoxItem(+($("#sheetFoot").lastElementChild.dataset.boxIdx||-1)); break;
@@ -4920,10 +5394,25 @@ function syncExtSelCnt(){
   if(mb)mb.style.display=extSelMode==="mine"?"":"none";
   var vb=$("#extSelMoveBtn");
   if(vb)vb.style.display=extSelMode==="box"?"":"none";
+  var pb=$("#extSelMakerBtn");
+  if(pb)pb.style.display=(extSelMode==="pg"||extSelMode==="icon")?"":"none";
+  var gb=$("#extSelGrpBtn");
+  if(gb)gb.style.display=extSelMode&&extSelMode!=="box"?"":"none";
+}
+/* 只切换已渲染卡片的选中 class，不整页重渲染（避免瀑布流重排造成闪一下）。
+   新进入 / 退出多选时才整页重渲染一次，日常勾选走这里 */
+function syncExtSelCellClasses(){
+  var scope=extSelMode==="icon"?"#iconList":extSelMode==="mine"?"#mineList":extSelMode==="box"?"#boxList":extSelMode==="star"?"#starList":"#pgList";
+  var attr=extSelMode==="icon"?"data-ic":extSelMode==="mine"?"data-id":extSelMode==="box"?"data-bx":"data-pg";
+  var box=$(scope);if(!box)return;
+  box.querySelectorAll("["+attr+"]").forEach(function(el){
+    var k=el.getAttribute(attr);
+    el.classList.toggle("esel-on",!!extSelSet[k]);
+  });
 }
 function extSelToggleKey(key){
   if(extSelSet[key])delete extSelSet[key];else extSelSet[key]=1;
-  syncExtSelCnt();extSelPageRerender();
+  syncExtSelCnt();syncExtSelCellClasses();
 }
 function extSelVisibleKeys(){
   var a=[];
@@ -4940,7 +5429,7 @@ function extSelAll(){
   var all=ks.length>0&&ks.every(function(k){return extSelSet[k]});
   extSelSet={};
   if(!all)ks.forEach(function(k){extSelSet[k]=1});
-  syncExtSelCnt();extSelPageRerender();
+  syncExtSelCnt();syncExtSelCellClasses();
 }
 function extSelItems(){
   return Object.keys(extSelSet).map(function(k){
@@ -5525,8 +6014,10 @@ function doProgressAdd(){
 }
 function progressThumbUri(svg){
   try{
-    var s=String(svg||"")
-      .replace(/<script[\s\S]*?<\/script>/gi,"")
+    var s=String(svg||"");
+    /* 阅读器进度条模板：占位符先填示例值，否则 data URI 里留着 {w}/{h}/{=} 解析失败，缩略图整张空白 */
+    if(svgHasTpl(s))s=svgFillTpl(s);
+    s=s.replace(/<script[\s\S]*?<\/script>/gi,"")
       .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,"");
     /* 去掉 SMIL 动画节点：部分 WebView 里 data URI 的 SVG 也会跑 <animate>，多图案进度条缩略图会逐格闪入。
        删掉后 <use> 继承父级 fill-opacity（完成态），缩略图直接显示静态成品。 */
@@ -5591,6 +6082,7 @@ function buildProgressDoc(it){
 'button,input{font:inherit;color:inherit}'+
 '.bar{flex:none;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;background:#fff;border-bottom:1px solid #e2e7ef}'+
 '.hd{flex:1;min-width:0}.hd .t{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
+'.hd .mk{font-size:10px;color:#9aa5b5;font-weight:650;margin-top:2px}'+
 '.badge{flex:none;border-radius:999px;padding:4px 9px;background:#fbf0e7;color:#9d6b46;font-size:10px;font-weight:700}'+
 '.stage{flex:1;min-height:180px;overflow:auto;display:flex;align-items:center;justify-content:center;padding:18px;background-color:#faf9f6}'+
 '.stage.checker{background-image:linear-gradient(45deg,#eef2f7 25%,transparent 25%),linear-gradient(-45deg,#eef2f7 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#eef2f7 75%),linear-gradient(-45deg,transparent 75%,#eef2f7 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0}'+
@@ -5616,7 +6108,7 @@ function buildProgressDoc(it){
 '.toast.show{opacity:1}'+
 themeOverrideCSS()+
 '</style></head><body>'+
-'<header class="bar"><div class="hd"><div class="t">'+esc(it.name||"进度条")+'</div></div><span class="badge" id="badge">进度条</span></header>'+
+'<header class="bar"><div class="hd"><div class="t">'+esc(it.name||"进度条")+'</div>'+(String(it.maker||"").trim()?'<div class="mk">制作者：'+esc(String(it.maker).trim())+'</div>':"")+'</div><span class="badge" id="badge">进度条</span></header>'+
 '<main class="stage warm" id="stage"><div class="msg" id="msg">正在加载…</div></main>'+
 '<section class="controls">'+
   '<div class="acts"><button type="button" id="copySvg">复制源码</button><button type="button" id="dlSvg">导出 SVG</button><button type="button" id="dlTxt">导出 TXT</button></div>'+
@@ -5663,7 +6155,7 @@ themeOverrideCSS()+
 'if(fl==="freeze"&&at&&en){try{p.setAttribute(at,en)}catch(e){}}'+
 'try{p.removeChild(a)}catch(e){}});'+
 'return root}'+
-'function sourceBox(root){var v=(root.getAttribute("viewBox")||"").trim().split(/[\\s,]+/).map(Number);'+
+'function sourceBox(root){var vbRaw=(root.getAttribute("viewBox")||"").replace(/\\{\\s*w\\s*\\}/gi,"390").replace(/\\{\\s*h\\s*\\}/gi,"32");var v=vbRaw.trim().split(/[\\s,]+/).map(Number);'+
 'if(v.length===4&&v.every(Number.isFinite)&&v[2]>0&&v[3]>0)return v;'+
 'var w=parseFloat(root.getAttribute("width")),h=parseFloat(root.getAttribute("height"));'+
 'if(w>0&&h>0)return[0,0,w,h];return[0,0,800,600]}'+
@@ -5685,7 +6177,7 @@ themeOverrideCSS()+
 'var fn=new Function(names.concat(["min","max","abs","round","floor","ceil"]).join(","),\'"use strict";return (\'+src+\');\');'+
 'var r=fn.apply(null,args.concat([Math.min,Math.max,Math.abs,Math.round,Math.floor,Math.ceil]));'+
 'if(Number.isFinite(r))return Math.round(r*1000)/1000}catch(e){}return null}'+
-'function valsFor(pv){var b=viewBox;return{chapterPct:pv,bookPct:pv,battery:pv,batteryPct:pv,chapterNumber:1,em:16,w:b[2],h:b[3]}}'+
+'function valsFor(pv){var b=viewBox;return{chapterPct:pv,bookPct:pv,battery:pv,batteryPct:pv,chapterNumber:1,page:1,em:16,w:b[2],h:b[3]}}'+
 'function replaceExpr(str,vals){return String(str).replace(/\\{\\s*(=?)\\s*([^{}]+?)\\s*\\}/g,function(all,eq,expr){'+
 'var key=String(expr||"").trim();'+
 'if(!eq&&/^[A-Za-z_]\\w*$/.test(key)&&Object.prototype.hasOwnProperty.call(vals,key))return String(vals[key]);'+
@@ -5862,7 +6354,7 @@ $("#pgImport").addEventListener("click",function(){ showSvgImport("") });
 $("#mineImport").addEventListener("click",function(){ showAddSheet() });
 $("#pgStar").addEventListener("click",openStarPage);
 $("#starBack").addEventListener("click",closeStarPage);
-var pgState={grp:"all",view:"grid",q:""};
+var pgState={grp:"all",view:"grid",q:"",maker:"",scope:""};   /* maker：制作者筛选；scope：进度类型筛选（""=全部） */
 document.addEventListener("click",function(e){
   var gb=e.target.closest("[data-pggrp]");
   if(gb){ pgState.grp=gb.getAttribute("data-pggrp");
@@ -6023,7 +6515,16 @@ window.addEventListener("scroll",function(){
 /* ============ 启动 ============ */
 load();
 render();
-hydrate();
+hydrate().then(function(){
+  /* 自愈：旧版本把含 {w}/{h}/{=} 占位符的阅读器进度条模板误识别成图标收进了图标库。
+     带模板占位符的不可能是图标，启动时自动转回进度条库（只动这一类，静态图形不碰）。
+     放在 hydrate 之后：大内容 svg 存在 IndexedDB，要先等它填回才能检查 */
+  var n=0;
+  DB.items.forEach(function(it){
+    if(it.type==="icon"&&it.svg&&svgHasTpl(it.svg)){it.type="progress";n++}
+  });
+  if(n){try{save();render()}catch(e){}}
+});
 syncMailDot();
 /* 版本过期检测：桌面 PWA 可能被旧 Service Worker 卡在老版本（老版导出备份没有工具内容）。
    拉一次最新页面比对构建标记，不一致就提示刷新 / 重建图标 */
@@ -6054,6 +6555,16 @@ setTimeout(function(){
 },3000);
 /* 站点通知：最新一条弹一次，所有版本更新通知存档在顶栏 ✉ 信件图标里随时翻看 */
 var NOTICES=[
+ {id:"3.2",title:"3.2版本更新通知",date:"11月16日",body:
+  '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 9h16M9 4v5"/></svg><div><b>修复：分组筛选弹层被压扁。</b>之前在 iPhone 上打开「分组筛选」「新建分组」等弹层时，弹层高度偶尔被锁死在旧值上，列表被压扁只剩一两行、底下空一大块。现在弹层高度完全交给内容自适应，<b>不再可能出现锁死</b>；分组特别多时列表内部滚动，底部按钮始终贴着弹层底边。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div><b>进度条库 / 图标库支持上传自定义封面：</b>条目的 ⋯ 菜单里新增「<b>上传封面</b>」，选一张图片，列表缩略图就换成你的封面（不再显示自动生成的预览）；上传后菜单里可「更换封面」「移除封面」，移除即恢复默认。封面会自动压缩（最长边 640px）不占空间，<b>随备份一起导出导入，刷新不丢</b>。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 11h16M4 16h10M4 20h7"/></svg><div><b>图标库也能按制作者筛选：</b>「分组筛选」弹层里的<b>制作者筛选区</b>现在图标库也有了，和进度条库同款：点制作者胶囊只看该作者的图标，没填制作者的归入「未归类」方便检查补填；图标的 ⋯ 菜单里也能直接「设置制作者」。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18" cy="17" r="2"/></svg><div><b>制作者筛选标签调整：</b>「未归类」固定排在制作者标签的<b>最前面</b>，数量为 0 时自动隐藏。在「分组筛选」弹层点「<b>编辑</b>」切换成行式后，制作者行左侧出现 ⠿，<b>长按拖动</b>即可调整显示顺序，进度条库 / 图标库都支持，顺序随备份保存。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><div><b>制作者可以批量改、批量重命名：</b>进度条库和图标库点「多选」勾选若干条目后，多选条上新增「<b>设置制作者</b>」，一次把勾选项改成同一个制作者（留空保存即批量清除），其他条目不动；「分组筛选」弹层点「编辑」后，顶部可直接切换「<b>编辑分组 / 编辑制作者</b>」，在编辑制作者态点 ✎ 可<b>重命名</b>制作者，该制作者下的全部条目同步改名，拖动排序位置也会保留。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h13M3 12h18M3 17h9"/><path d="m17 15 3 3-3 3"/></svg><div><b>多选体验修正：</b>进度条库、图标库、我的工具、星标页点「多选」后，多选条新增「<b>移动分组</b>」，一次把勾选项归到同一分组（点已有分组可快速填入，留空保存即移出分组 / 未分组）；盒中盒里的「移动到…」仍是把文件移到文件夹，两者互不干扰。同时修好两处小问题：<b>「设置制作者」弹层每次都清空输入框</b>，不再带出上次的名字；主页面正处于多选时<b>进入进度条库 / 图标库 / 我的工具会自动退出主页面多选</b>，不会留着残留状态。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><div><b>导入时识别进度类型（全文 / 章节）：</b>导入 SVG 进度条时会按源码里的「章 / 页码 / 全文」等字样<b>自动判断</b>是章节进度还是全文进度，导入弹层里会显示识别结果；怕识别错了，可以在弹层新增的「进度类型」一行里<b>手动选</b>「全文进度 / 章节进度」，导入后也能在进度条 ⋯ 菜单「设置进度类型」里随时改。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15v-4M12 15V9M17 15v-6"/></svg><div><b>分组筛选可按进度类型筛选：</b>进度条库的「分组筛选」弹层新增「<b>进度类型</b>」区，点「全文进度 / 章节进度」胶囊即可只看对应类型的进度条，各带数量统计，点「清除筛选」恢复全部；搜索「章节 / 全文」也能按类型搜。</div></div>'
+ },
  {id:"3.1",title:"3.1版本更新通知",date:"11月15日",body:
   '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5V6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1"/><path d="M3 7.5h18a1 1 0 0 1 1 1V19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.5a1 1 0 0 1 1-1Z"/><path d="M8 13h8M8 17h5"/></svg><div><b>盒中盒导入可保留文件夹：</b>导入备份选「导入为盒中盒」时，如果备份里带文件夹，会多出一个可勾选的选项。勾上后，原来属于各文件夹的工具在盒中盒里会自动按<b>文件夹名分好组</b>（没有文件夹的归入「默认」分组），打开盒中盒点顶部的分组标签就能筛选；不勾则和以前一样。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg><div><b>修复：备份导入后子文件夹错位。</b>之前导出的备份重新导入，子文件夹会跑到最外面变成主文件夹。现在会按备份里的父子层级<b>原样还原</b>；已经被压平的旧数据，重新导入一次备份也会<b>自动补回层级</b>，不用手动重建。</div></div>'+
@@ -6292,7 +6803,7 @@ function siteNotice(){
 siteNotice();
 
 // 调试句柄：控制台排查用户问题用
-window.__hb={DB:DB,save:save,hydrate:hydrate,cdbAll:cdbAll,buildSelfContained:buildSelfContained,render:render,setView:setView,viewMode:viewMode,openBoxPage:openBoxPage,renderBoxPage:renderBoxPage,NOTICES:NOTICES,svgAutoType:svgAutoType,svgKind:svgKind,importSvgFiles:importSvgFiles,toggleStar:toggleStar,renderPgPage:renderPgPage,renderStarPage:renderStarPage,extPackName:extPackName};
+window.__hb={DB:DB,save:save,hydrate:hydrate,cdbAll:cdbAll,buildSelfContained:buildSelfContained,render:render,setView:setView,viewMode:viewMode,openBoxPage:openBoxPage,renderBoxPage:renderBoxPage,NOTICES:NOTICES,svgAutoType:svgAutoType,svgKind:svgKind,importSvgFiles:importSvgFiles,toggleStar:toggleStar,renderPgPage:renderPgPage,renderStarPage:renderStarPage,extPackName:extPackName,pgState:pgState,iconState:iconState,showGroupFilter:showGroupFilter,showSvgImport:showSvgImport,showScopeSheet:showScopeSheet,svgGuessScope:svgGuessScope,showNoticeDetail:(typeof showNoticeDetail==="function")?showNoticeDetail:null};
 
 // 自愈：个别内置 WebView（WKWebView）初次加载不绘制列表内容，
 // 强制创建合成层并触发一次重绘
