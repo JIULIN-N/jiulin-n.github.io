@@ -597,6 +597,8 @@ html[data-theme="mutedteal"] .logo{
 /* 独立整页：进度条库 / 盒中盒 */
 .extpage{position:fixed;inset:0;z-index:70;background:var(--bg-2);display:none;flex-direction:column}
 .extpage.on{display:flex;animation:viewIn .22s cubic-bezier(.2,.8,.2,1)}
+/* 库页之间互切（进度条库↔星标页等）：跳过入场动画，避免整个页面淡入淡出产生的“闪一下” */
+.extpage.on.pg-swap{animation:none}
 /* 搜索栏（进度条库） */
 .pg-search{flex:none;display:flex;align-items:center;gap:8px;margin:8px 14px 0;padding:0 12px;height:38px;border:1px solid var(--line);border-radius:999px;background:var(--bg-1,var(--bg));box-shadow:var(--shadow)}
 .pg-search svg{width:16px;height:16px;flex:none;color:var(--text-3)}
@@ -632,6 +634,8 @@ html[data-theme="mutedteal"] .logo{
 .extpage-bar h3{flex:1;min-width:0;margin:0;font-size:16.5px;font-weight:680;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .extpage-bar .cnt2{font-size:12px;color:var(--text-3);flex:none}
 .extpage-body{flex:1;min-height:0;overflow:auto;padding:14px}
+/* 多选态：列表底部留出多选条的高度，最后一排文件不会被浮在上面的多选条挡住 */
+body.esel .extpage-body{padding-bottom:132px}
 .extpage-body .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
 /* 我的工具页沿用瀑布流行基元，行距由 span 控制 */
 #mineList{column-gap:12px;row-gap:0}
@@ -651,14 +655,23 @@ html[data-theme="mutedteal"] .logo{
 .pgpill .desc{font-size:11px;line-height:1.4;color:var(--text-3);display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
 .pgthumb{height:52px;border-radius:9px;display:flex;align-items:center;justify-content:center;overflow:hidden;background-color:#f6f7f9;background-image:linear-gradient(45deg,#e9edf2 25%,transparent 25%),linear-gradient(-45deg,#e9edf2 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e9edf2 75%),linear-gradient(-45deg,transparent 75%,#e9edf2 75%);background-size:14px 14px;background-position:0 0,0 7px,7px -7px,-7px 0}
 .pgthumb img{width:100%;height:100%;object-fit:contain;display:block}
+/* 单条卡片缩略图深色底：只换底色、不给图片加反色，偏白的图在深底上才看得清 */
+.pgthumb.thumb-dark,.icthumb.thumb-dark{background-color:#202938;background-image:none}
+.pthumb.thumb-dark{background-color:#202938;background-image:none}
 /* 图标卡片：固定预览框，图案统一按 contain 缩放；⋯ 放在名称行右侧，不压住预览 */
 .iccard{padding:6px;gap:6px}
 .icthumb{height:76px;border-radius:9px}
-.icfoot{position:relative;display:flex;align-items:center;justify-content:center;min-height:28px;padding:0 2px}
-.iccard .icfoot .name{text-align:center;padding:0 22px;margin:0}
-.iccard .icfoot .more{position:absolute;right:0;top:50%;transform:translateY(-50%);width:24px;height:24px;border-radius:999px;display:grid;place-items:center;color:var(--text-3);background:transparent}
-.iccard .icfoot .more:hover{background:var(--bg-2);color:var(--text)}
-.iccard .icfoot .more svg{width:13px;height:13px}
+/* 图标卡脚部与进度条卡片视图同款排布：名称独占一行、制作者胶囊进独立标签行，
+   不再和名称挤在同一 flex 行里，避免长名称与胶囊、⋯ 按钮三者重叠。 */
+.icfoot{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:4px;min-height:42px;padding:0 2px 2px}
+/* 名称行：名称居中、两侧给 ⋯ 留白；按钮落在名称行右端，不压缩略图也不压文字 */
+.icnameline{position:relative;display:flex;align-items:center;justify-content:center;min-height:20px}
+.iccard .icnameline .name{text-align:center;padding:0 24px;margin:0;line-height:1.3;max-width:100%;overflow-wrap:anywhere}
+.iccard .icnameline .more{position:absolute;right:0;top:50%;bottom:auto;transform:translateY(-50%);width:24px;height:24px;border-radius:999px;display:grid;place-items:center;color:var(--text-3);background:transparent}
+.iccard .icnameline .more:hover{background:var(--bg-2);color:var(--text)}
+.iccard .icnameline .more svg{width:14px;height:14px}
+.iccard .icfoot .pgtags{justify-content:center;max-width:100%;padding:0 2px;gap:4px}
+.icmk{flex:none;max-width:96px}
 /* 三列视图：三列流式 pill，文字左对齐、可换行、不带类型标签 */
 .pgpills{display:grid;gap:8px;grid-template-columns:repeat(3,minmax(0,1fr))}
 @media (min-width:640px){.pgpills{grid-template-columns:repeat(4,minmax(0,1fr))}}
@@ -1166,6 +1179,20 @@ html[data-theme="dark"] .viewer iframe{background:#12141f}
 .sheet-head{display:flex;align-items:center;gap:10px;padding:16px 18px 10px;flex:none}
 .sheet-head h3{margin:0;font-size:16px;font-weight:640;flex:1;letter-spacing:-.01em}
 .sheet-body{padding:0 18px 16px;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0}
+/* 键盘弹起：把遮罩本身收缩成键盘上方的可视矩形（top/height 都跟 visualViewport），
+   弹层在这个矩形里贴顶排布。不用 dvh 减 overlap（会二次扣键盘高度把弹层压扁），
+   也不拿 offsetTop 去做 margin（body 被 fixed 锁住后 offsetTop 语义在真机会变，把弹层推到半空）。
+   遮罩位置/高度由 JS 按 vv 实测写入 --vv-top / --vv-h，位置稳定。 */
+.sheet-mask.kb-open,.sheet-mask.on.kb-open.gf-flow{align-items:flex-start}
+.sheet-mask.kb-open{top:var(--vv-top,0px);height:var(--vv-h,100dvh);bottom:auto}
+.sheet-mask.on.kb-open>.sheet{
+  margin-top:8px;
+  max-height:calc(var(--vv-h,100dvh) - 16px);
+  border-radius:18px;
+  animation:none;
+}
+/* 提高特异性覆盖分组筛选弹层给 sheet-body 写的 max-height，让内容在键盘上方单层滚动 */
+.sheet-mask.on.kb-open>.sheet>.sheet-body{flex:1 1 auto;min-height:0;max-height:none}
 /* 分组筛选流程：弹层顶部固定、高度完全交给内容决定（height:auto）。
    列表 ⇄ 新建 / 重命名 / 删除切换时顶边不动；JS 不再写死像素高度——
    之前在部分 iOS WebView 里「切换内容那一帧量到旧布局」导致弹层被锁死压扁，
@@ -1199,11 +1226,29 @@ html[data-theme="dark"] .viewer iframe{background:#12141f}
 
 .field{margin:12px 0}
 .field label{display:block;font-size:12.5px;font-weight:600;color:var(--text-2);margin-bottom:6px}
+/* 导入源码框标题行：清空按钮靠右，和标题同一行 */
+.iclabelrow{display:flex;align-items:center;justify-content:space-between}
+.iclabelrow label{margin-bottom:6px}
+.svgimp-clear{border:0;background:var(--bg-2);color:var(--text-2);font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:999px;margin-bottom:6px;min-height:26px;cursor:pointer}
+.svgimp-clear:hover{background:var(--brand-soft);color:var(--brand)}
 /* 导入 SVG：识别结果用小字放在标签行，三个按钮等宽不换行 */
 .svgimp-hint{font-size:11.5px;font-weight:500;color:var(--text-3);margin-left:6px}
 .svgimp-kinds{display:flex;gap:8px}
 .svgimp-kinds .btn-ghost{flex:1;min-width:0;height:42px;padding:0 6px;font-size:13px;white-space:nowrap;justify-content:center}
 .svgimp-kinds .btn-ghost.on{border-color:var(--brand);color:var(--brand);background:var(--brand-soft);font-weight:700}
+.svgimp-preview{position:relative;margin-top:10px;min-height:66px;max-height:170px;overflow:auto;border:1px dashed var(--line);border-radius:12px;background:#faf9f6;display:flex;align-items:center;justify-content:center;padding:10px}
+.svgimp-preview.pv-light{background:#faf9f6}
+.svgimp-preview.pv-dark{background:#1f2937}
+.svgimp-preview .pv-inner{display:flex;align-items:center;justify-content:center;width:100%;min-width:0;max-height:148px}
+.svgimp-preview img{display:block;max-width:100%;width:auto;height:auto;max-height:148px;object-fit:contain}
+/* 切换底色只改变预览背景，主体（图标/进度条）保持原样，不做反色 */
+.svgimp-preview .pv-ph{font-size:11.5px;color:var(--text-3)}
+.svgimp-preview.pv-dark .pv-ph{color:#9aa6b6}
+/* 预览底色切换按钮：贴在预览区右上角 */
+.pv-bgbtn{position:absolute;top:6px;right:6px;z-index:2;height:26px;padding:0 9px;border-radius:8px;border:1px solid var(--line);
+  background:color-mix(in srgb,var(--bg) 88%,transparent);color:var(--text-2);font-size:11px;font-weight:600;cursor:pointer;
+  display:inline-flex;align-items:center;gap:4px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.pv-bgbtn:active{transform:scale(.96)}
 .input,.textarea,.select{
   width:100%;border:1px solid var(--line-2);background:var(--bg-2);
   border-radius:14px;padding:11px 13px;font-size:14.5px;outline:none;
@@ -1225,6 +1270,9 @@ html[data-theme="dark"] .viewer iframe{background:#12141f}
 .menu{position:fixed;z-index:90;min-width:190px;background:var(--bg-2);border:1px solid var(--line);
   border-radius:18px;box-shadow:var(--shadow-lg);padding:6px;display:none;animation:fadeIn .12s}
 .menu.on{display:block}
+/* 菜单打开时让查看器 iframe 不截获点击：iframe(sandbox) 内部点击不冒泡到父文档，
+   否则点进度条区域无法关闭 ⋯ 菜单。穿透后由 document 的 click 监听统一收起菜单 */
+body.menu-open .viewer iframe{pointer-events:none}
 .menu button{display:flex;align-items:center;gap:10px;width:100%;padding:10px 11px;border-radius:11px;font-size:13.5px;color:var(--text);text-align:left}
 .menu button:hover{background:var(--bg-3)}
 .menu button.danger{color:var(--danger)}
@@ -1607,7 +1655,7 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
 "use strict";
 
 /* ---------------------- 诊断：版本号 + 错误显示条 ---------------------- */
-var APP_VER="v3",BUILD_ID="b1115a",VER_LABEL="3.2";/* VER_LABEL：页面对外显示版本号；BUILD_ID 为内部构建标识（版本检测/通知匹配用），保持不变 */
+var APP_VER="v3",BUILD_ID="b1116a",VER_LABEL="3.3";/* VER_LABEL：页面对外显示版本号；BUILD_ID 为内部构建标识（版本检测/通知匹配用），保持不变 */
 window.__hbver=APP_VER;
 function showErrBar(msg){
   try{
@@ -1826,8 +1874,8 @@ function normalize(it){
   it.tags=it.tags.filter(function(t){return typeof t==="string"});
   /* 制作者：单个名字字符串，空值删除字段 */
   if(it.maker!=null){it.maker=String(it.maker).trim().slice(0,20);if(!it.maker)delete it.maker}
-  /* 进度类型：仅进度条有（chapter=章节进度 / full=全文进度）；缺省或非法值归为全文进度 */
-  if(it.type==="progress"){ if(it.scope!=="chapter"&&it.scope!=="full")it.scope="full" }
+  /* 进度类型：仅进度条有（chapter=章节进度 / full=全文进度 / deco=纯装饰）；缺省或非法值归为全文进度 */
+  if(it.type==="progress"){ if(it.scope!=="chapter"&&it.scope!=="full"&&it.scope!=="deco")it.scope="full" }
   else if(it.scope!=null)delete it.scope;
   it.size=Number(it.size)||0;
   if(it.type==="bundle"&&!Array.isArray(it.items))it.items=[];
@@ -2432,7 +2480,7 @@ function gridCardHTML(it){
 function cardHTML(it){
   var chips=chipsFor(it);
   var bits=selBits(it);
-  var thumb=(it.type==="progress"&&it.svg)?'<div class="pthumb"><img loading="lazy" draggable="false" src="'+progressThumbUri(it.svg)+'" alt=""></div>':"";
+  var thumb=(it.type==="progress"&&it.svg)?'<div class="pthumb'+(it.thumbBg==="dark"?" thumb-dark":"")+'"><img loading="lazy" draggable="false" src="'+progressThumbUri(it.svg)+'" alt=""></div>':"";
   return '<article class="card'+(selSet[it.id]?" selected":"")+((it&&it.pinned)?" pinned":"")+'" data-id="'+it.id+'">'+bits+
     '<button class="more" data-act="menu" aria-label="更多操作" data-id="'+it.id+'">'+MORE_SVG+
     '</button>'+
@@ -2536,7 +2584,39 @@ window.addEventListener("resize",function(){
   layoutPgMasonry();
   if($("#starPage")&&$("#starPage").classList.contains("on"))layoutPgMasonry("starList");
 });
+/* 通用：记录当前打开的独立页滚动位置，render 重建列表后还原，避免收藏 / 置顶 / 移库等操作后跳回顶部。
+   以页面 id 为键存每个 .extpage-body 的 scrollTop；重绘后同步还原一次，瀑布流布局后再补一次。 */
+function _snapshotPageScroll(){
+  var m={};
+  ["pgPage","starPage","minePage","iconPage","boxPage"].forEach(function(pid){
+    var pg=document.getElementById(pid);
+    if(!pg||!pg.classList.contains("on"))return;
+    var b=pg.querySelector(".extpage-body");
+    if(b)m[pid]=b.scrollTop;
+  });
+  return m;
+}
+function _restorePageScroll(m){
+  if(!m)return;
+  Object.keys(m).forEach(function(pid){
+    var pg=document.getElementById(pid);
+    if(!pg||!pg.classList.contains("on"))return;
+    var b=pg.querySelector(".extpage-body");
+    if(b)b.scrollTop=m[pid];
+  });
+}
+/* 从一个库页切到另一个库页时，目标页跳过 viewIn 入场动画（避免整页淡入淡出的“闪一下”）。
+   需在给目标页加 on 之前调用：此时来源页仍带 on。 */
+function _swapExtPage(targetId){
+  var target=document.getElementById(targetId);if(!target)return;
+  var switching=["pgPage","starPage","minePage","iconPage","boxPage"].some(function(pid){
+    return pid!==targetId&&document.getElementById(pid)&&document.getElementById(pid).classList.contains("on");
+  });
+  if(switching)target.classList.add("pg-swap");
+  else target.classList.remove("pg-swap");
+}
 function render(){
+  var _scroll=_snapshotPageScroll();   /* 重绘前先存各独立页滚动位置 */
   applyTheme();
   syncExtEntries();
   renderBody();
@@ -2547,6 +2627,8 @@ function render(){
   if($("#boxPage").classList.contains("on")&&curBundle)renderBoxPage();
   if($("#minePage").classList.contains("on"))renderMinePage();
   if($("#iconPage").classList.contains("on"))renderIconPage();
+  _restorePageScroll(_scroll);         /* 立即还原；瀑布流重排会改高度，稍后再补一次 */
+  setTimeout(function(){ _restorePageScroll(_scroll) },40);
   // WKWebView 偶发不绘制新插入的列表内容，每次渲染后强制触发一次重绘
   setTimeout(forceRepaint,30);
   setTimeout(forceRepaint,300);
@@ -2692,7 +2774,17 @@ function closeViewer(skipHistory){
   if(!wasNested&&!skipHistory){
     if(location.hash.indexOf("#tool=")===0)history.back();
   }
+  /* render() 可能重建列表 DOM（例如切换过底色使签名变化），若不还原滚动位置会跳回最上方。
+     先记下各独立页滚动容器与窗口位置，render 后立即还原，并在瀑布流布局后再补一次。 */
+  var _sv=[].slice.call(document.querySelectorAll(".extpage-body")).map(function(el){return [el,el.scrollTop]});
+  var _sw=window.scrollY||0;
+  function _restoreScroll(){
+    _sv.forEach(function(p){ if(p[0]&&p[0].isConnected)p[0].scrollTop=p[1] });
+    try{window.scrollTo(0,_sw)}catch(e){}
+  }
   render();
+  _restoreScroll();
+  setTimeout(_restoreScroll,80);
   /* 从进度条库 / 我的工具等独立页打开的查看器：关闭后仍停留在该页 */
   if($("#pgPage").classList.contains("on")||$("#minePage").classList.contains("on")||
      $("#iconPage").classList.contains("on")||$("#boxPage").classList.contains("on")||
@@ -2894,15 +2986,16 @@ function showGroupFilter(page){
       body+='<div class="gflist gfpills">'+mkChips.join("")+'</div>';
     }
   }
-  /* 进度条库：进度类型筛选（全文进度 / 章节进度），与制作者筛选同款交互 */
+  /* 进度条库：进度类型筛选（全文进度 / 章节进度 / 纯装饰），与制作者筛选同款交互 */
   if(page==="pg"&&!edit){
-    var nFull=0,nChap=0;
-    DB.items.forEach(function(x){ if(x.type!=="progress")return; if(pgScopeOf(x)==="chapter")nChap++;else nFull++ });
+    var nFull=0,nChap=0,nDeco=0;
+    DB.items.forEach(function(x){ if(x.type!=="progress")return; var sc=pgScopeOf(x); if(sc==="chapter")nChap++;else if(sc==="deco")nDeco++;else nFull++ });
     body+='<div class="gfhead" style="margin-top:14px"><span class="lbl">进度类型</span>'+
       (pgState.scope?'<button class="gfedit-btn" data-act="gf-sc-clear" data-gfpage="pg">清除筛选</button>':"")+'</div>';
     body+='<div class="gflist gfpills">'+
       '<button class="gfpillchip'+(pgState.scope==="full"?" on":"")+'" data-gfsc="full" data-gfpage="pg">全文进度<span class="n">'+nFull+'</span></button>'+
       '<button class="gfpillchip'+(pgState.scope==="chapter"?" on":"")+'" data-gfsc="chapter" data-gfpage="pg">章节进度<span class="n">'+nChap+'</span></button>'+
+      '<button class="gfpillchip'+(pgState.scope==="deco"?" on":"")+'" data-gfsc="deco" data-gfpage="pg">纯装饰<span class="n">'+nDeco+'</span></button>'+
       '</div>';
   }
   body+='<p class="hint" style="margin-top:10px">'+
@@ -2915,6 +3008,8 @@ function showGroupFilter(page){
   if(mkgEdit)gfBindMakerDrag(page);
 }
 function gfSetGroup(page,val){
+  /* 点「全部」= 看全部：顺手清掉制作者筛选，不用再手动点「清除筛选」 */
+  if(val==="all"){ if(page==="icon")iconState.maker="";else pgState.maker="" }
   gfSetCur(page,val);gfRerender(page);
   gfEdit[page]=false;closeSheet();
 }
@@ -3136,9 +3231,21 @@ function starBadgeHTML(it){
 function toggleStar(id){
   var it=DB.items.find(function(x){return x.id===id});if(!it)return;
   it.star=it.star?0:1;
-  save();render();
-  if($("#pgPage").classList.contains("on"))renderPgPage();
-  if($("#starPage")&&$("#starPage").classList.contains("on"))renderStarPage();
+  save();
+  /* 精准更新星标角标，不调用 render() 重建列表——否则整页重绘会闪一下、并冲掉滚动位置。
+     角标是绝对定位，插在容器头部不影响布局；签名里已移除 star，返回查看器时也不会重建。
+     只选进度条卡片容器 [data-pg]；不能用 [data-id]，那会误命中卡片里的 ⋯ 菜单按钮，在缩略图上多插一个角标。 */
+  [].slice.call(document.querySelectorAll('.more > .starbadge')).forEach(function(b){b.parentNode.removeChild(b)});
+  var cards=[].slice.call(document.querySelectorAll('[data-pg="'+id+'"]'));
+  cards.forEach(function(card){
+    if(it.star){
+      if(!card.querySelector(":scope > .starbadge"))card.insertAdjacentHTML("afterbegin",starBadgeHTML(it));
+    }else{
+      [].slice.call(card.querySelectorAll(":scope > .starbadge")).forEach(function(b){b.parentNode.removeChild(b)});
+      /* 星标页里取消收藏：这张卡不该再留在星标页，直接移除 */
+      if(card.closest && card.closest("#starPage"))card.parentNode.removeChild(card);
+    }
+  });
   syncVStar();
   toast(it.star?"已收藏，可在「星标收藏」里查看":"已取消收藏");
 }
@@ -3164,21 +3271,45 @@ function pgTagRow(it){
   var c=pgTagChips(it);
   return c?'<span class="pgtags">'+c+'</span>':"";
 }
-/* 进度类型：chapter=章节进度 / full=全文进度；旧数据没存 scope 的按全文进度算 */
-function pgScopeOf(it){return it&&it.scope==="chapter"?"chapter":"full"}
-/* 从 SVG 源码猜测进度类型：出现「章 / 页 / {page} / {chapter}」等字样按章节进度，
-   出现「全文 / 全书」按全文进度，其余默认全文进度；猜错了可在导入弹层里手动改 */
+/* 进度类型：chapter=章节进度 / full=全文进度 / deco=纯装饰；旧数据没存 scope 的按全文进度算 */
+function pgScopeOf(it){return it&&it.scope==="chapter"?"chapter":it&&it.scope==="deco"?"deco":"full"}
+function pgScopeName(v){return v==="chapter"?"章节进度":v==="deco"?"纯装饰":"全文进度"}
+/* 从 SVG 源码猜测进度类型：出现「装饰」按纯装饰，出现「章 / 页 / {page} / {chapter}」等字样按章节进度，
+   出现「全文 / 全书」按全文进度；长条形（被判为进度条）却没有任何进度标记 / 占位符 / 文字的（如签名、丝带、标题图）按纯装饰，
+   其余默认全文进度；猜错了可在导入弹层里手动改 */
 function svgGuessScope(svg){
   var s=String(svg||"");
-  if(/全[文书]/.test(s))return "full";
-  if(/章/.test(s))return "chapter";
-  if(/\{page\}|\{chapter\}|页/.test(s))return "chapter";
+  /* 先剥离 XML 注释：注释里写的「装饰 / 全文」等说明文字不该参与识别
+     （宫灯进度条注释里带「装饰」二字，曾被误判成纯装饰） */
+  var code=s.replace(/<!--[\s\S]*?-->/g,"");
+  if(/装饰/.test(code))return "deco";
+  /* 模板变量占位符：page/chapter 按章节；full 按全文 */
+  if(/\{page\}|\{chapter\}|chapterPct/i.test(code))return "chapter";
+  if(/fullPct/i.test(code))return "full";
+  /* 离散多节点逐个点亮（≥3 个重复 <use href="#同一id">：宫灯 / 星星 / 心跳这类）
+     —— 用户眼里这就是「章节进度」的典型样子，优先于 book 等属性值 */
+  var useCnt={},maxRep=0;
+  (code.match(/<use\b[^>]*?href\s*=\s*["']#([^"']+)["']/gi)||[]).forEach(function(u){
+    var m=u.match(/href\s*=\s*["']#([^"']+)["']/i);
+    if(m){var k=m[1];useCnt[k]=(useCnt[k]||0)+1;if(useCnt[k]>maxRep)maxRep=useCnt[k]}
+  });
+  if(/data-progress\s*=/.test(code)&&maxRep>=3)return "chapter";
+  /* data-progress 属性值：chapter / page → 章节 */
+  var dm=code.match(/data-progress\s*=\s*["']([^"']+)["']/i);
+  var dv=dm?dm[1].trim().toLowerCase():"";
+  if(/chapter|page|页/.test(dv))return "chapter";
+  if(/全[文书]/.test(code))return "full";
+  if(/章/.test(code))return "chapter";
+  /* book / battery / full：单条连续填充型按全文进度 */
+  if(/book|battery|full/.test(dv))return "full";
+  /* 长条图但无任何进度特征（签名 / 丝带 / 标题图）→ 纯装饰 */
+  if(svgAutoType(s)==="progress"&&!/data-progress\s*=|\{=\s*[^{}]*\}|chapterPct|bookPct|batteryPct|%/i.test(code))return "deco";
   return "full";
 }
 /* 进度条库 / 星标页搜索 hay：名称 + 备注 + 制作者 + 标签 + 分组 + 自动识别类型 + 进度类型 */
 function pgSearchHay(it){
   return (String(it.name||"")+" "+String(it.desc||"")+" "+String(it.maker||"")+" "+(it.tags||[]).join(" ")+" "+
-    String(it.pgroup||"")+" "+String(svgKind(it.svg)||"")+" "+(pgScopeOf(it)==="chapter"?"章节进度":"全文进度")).toLowerCase();
+    String(it.pgroup||"")+" "+String(svgKind(it.svg)||"")+" "+pgScopeName(pgScopeOf(it))).toLowerCase();
 }
 /* 进度条卡片三视图渲染，进度条库与星标页共用；mode 决定多选态归属 */
 function pgItemHTML(it,view,mode){
@@ -3215,7 +3346,7 @@ function pgItemHTML(it,view,mode){
     '<div class="name">'+esc(it.name||"未命名")+'</div>'+
     (it.desc?'<div class="desc">'+esc(it.desc)+'</div>':"")+
     tagrow+
-    ((it.cover||it.svg)?'<div class="pgthumb"><img loading="lazy" draggable="false" src="'+(it.cover||progressThumbUri(it.svg))+'" alt=""></div>':"")+
+    ((it.cover||it.svg)?'<div class="pgthumb'+(it.thumbBg==="dark"?" thumb-dark":"")+'"><img loading="lazy" draggable="false" src="'+(it.cover||progressThumbUri(it.svg))+'" alt=""></div>':"")+
     '<button class="more" data-act="menu" aria-label="更多操作" data-id="'+it.id+'">'+MORE_SVG+'</button>'+
     starBadgeHTML(it)+
     '</article>';
@@ -3232,8 +3363,7 @@ function renderPgPage(){
   if(pgState.maker==="__none__")pgs=pgs.filter(function(x){return !String(x.maker||"").trim()});
   else if(pgState.maker)pgs=pgs.filter(function(x){return String(x.maker||"").trim()===pgState.maker});
   /* 进度类型筛选：分组筛选弹层里选中「全文进度 / 章节进度」后只显示对应类型 */
-  if(pgState.scope==="chapter")pgs=pgs.filter(function(x){return pgScopeOf(x)==="chapter"});
-  else if(pgState.scope==="full")pgs=pgs.filter(function(x){return pgScopeOf(x)==="full"});
+  if(pgState.scope)pgs=pgs.filter(function(x){return pgScopeOf(x)===pgState.scope});
   /* 搜索：名称 / 备注 / 标签 / 分组 / 类型，输入框本身不重绘避免失焦 */
   var q=String(pgState.q||"").trim().toLowerCase();
   if(q)pgs=pgs.filter(function(x){return pgSearchHay(x).indexOf(q)>=0});
@@ -3245,7 +3375,7 @@ function renderPgPage(){
   list.className=pgState.view==="grid"?"pg-grid":pgState.view==="pills"?"pgpills":pgState.view==="flow"?"pgflowview":"boxrows";
   /* 内容签名：从查看器返回等重复 render 时，数据没变就不重建 DOM（避免缩略图重新加载导致闪一下） */
   var _sig=JSON.stringify([pgState.view,pgState.grp,q,pgState.maker,pgState.scope,extSelMode,extSelSet,!!DB.settings.hideTags,extOrgPage,
-    pgs.map(function(x){return [x.id,x.name,String(x.desc||""),(x.tags||[]).join(","),x.star?1:0,x.pinned?1:0,x.pinnedAt||0,String(x.pgroup||""),String(x.maker||""),String(x.scope||""),String(x.svg||"").length,String(x.cover||"").length,x.ord]})]);
+    pgs.map(function(x){return [x.id,x.name,String(x.desc||""),(x.tags||[]).join(","),x.pinned?1:0,x.pinnedAt||0,String(x.pgroup||""),String(x.maker||""),String(x.scope||""),String(x.svg||"").length,String(x.cover||"").length,x.ord]})]);
   if(_sig===_pgRenderSig&&list.children.length){
     if(pgState.view==="grid"||pgState.view==="pills")setTimeout(layoutPgMasonry,30);
     return;
@@ -3253,7 +3383,7 @@ function renderPgPage(){
   _pgRenderSig=_sig;
   if(!pgs.length){
     list.className="";
-    list.innerHTML='<div class="empty"><h2>'+(q?'没有匹配「'+esc(String(pgState.q||"").trim())+'」的进度条':pgState.maker==="__none__"&&pgState.grp==="all"?"没有未填写制作者的进度条":pgState.maker&&pgState.maker!=="__none__"&&pgState.grp==="all"?"这个制作者下还没有进度条":pgState.scope==="chapter"&&pgState.grp==="all"&&!pgState.maker?"没有章节进度的进度条":pgState.scope==="full"&&pgState.grp==="all"&&!pgState.maker?"没有全文进度的进度条":pgState.grp==="ug"&&all.length?"没有未分组的进度条":pgState.grp!=="all"&&pgState.grp!=="ug"?"这个分组里还没有进度条":"进度条库是空的")+'</h2><p>点右上角「导入」读取 svg / txt 文件，或「+」新建。条目的 ⋯ 菜单里可以设置分组。</p></div>';
+    list.innerHTML='<div class="empty"><h2>'+(q?'没有匹配「'+esc(String(pgState.q||"").trim())+'」的进度条':pgState.maker==="__none__"&&pgState.grp==="all"?"没有未填写制作者的进度条":pgState.maker&&pgState.maker!=="__none__"&&pgState.grp==="all"?"这个制作者下还没有进度条":pgState.scope==="chapter"&&pgState.grp==="all"&&!pgState.maker?"没有章节进度的进度条":pgState.scope==="deco"&&pgState.grp==="all"&&!pgState.maker?"没有纯装饰的进度条":pgState.scope==="full"&&pgState.grp==="all"&&!pgState.maker?"没有全文进度的进度条":pgState.grp==="ug"&&all.length?"没有未分组的进度条":pgState.grp!=="all"&&pgState.grp!=="ug"?"这个分组里还没有进度条":"进度条库是空的")+'</h2><p>点右上角「导入」读取 svg / txt 文件，或「+」新建。条目的 ⋯ 菜单里可以设置分组。</p></div>';
     return;
   }
   list.innerHTML=pgs.map(function(it){return pgItemHTML(it,pgState.view,"pg")}).join("");
@@ -3291,19 +3421,22 @@ function renderStarPage(){
 function openStarPage(){
   if(selMode)exitSelect();
   if(extOrgPage)exitExtOrg();
-  closePgPage();
-  renderStarPage();
-  $("#starPage").classList.add("on");
+  _swapExtPage("starPage");                /* 库页互切：若来自另一个库页，跳过入场动画 */
+  closePgPage(true);                       /* 静默关闭进度条库：跳过 forceRepaint，避免切入星标页时整页闪一下 */
+  $("#starPage").classList.add("on");      /* 先显示容器，masonry 才能量到真实高度 */
   document.body.style.overflow="hidden";
+  renderStarPage();
+  layoutPgMasonry("starList");             /* 同步排一次，消除首帧卡片挤压导致的闪烁 */
   setTimeout(function(){layoutPgMasonry("starList")},60);
   setTimeout(function(){layoutPgMasonry("starList")},350);
 }
 function closeStarPage(){
   if(extSelMode==="star")exitExtSel();
   starState.q="";syncStarSearch();
+  $("#pgPage").classList.add("pg-swap");   /* 库页互切：返回进度条库时跳过入场动画，避免整页淡入淡出闪烁 */
   $("#starPage").classList.remove("on");
   document.body.style.overflow="";
-  setTimeout(forceRepaint,30);
+  /* 不再单独 forceRepaint：紧接着 openPgPage() 会同步布局并重绘，多余的延时重绘反而导致返回时闪一下 */
   /* 星标页由进度条库进入，返回时回到进度条库而不是主页面 */
   openPgPage();
 }
@@ -3345,8 +3478,14 @@ function svgKind(svg){
    示例值决定预览的胖瘦——填太方的（如 240×80）预览会比真机矮胖很多。 */
 function svgFillTpl(s,W,H){
   W=W||390;H=H||32;
+  /* 示例值尽量贴近查看器（valsFor）：em=16、进度取 50%，且补齐 bookPct / battery / 数学函数。
+     之前只传 w/h/page/chapterPct，心电图这类用 bookPct + min/max 的模板求值抛错被吞成 "0"，
+     预览里线宽=0、心形位置=0，几乎认不出；这里补全后缩略图与查看器一致。 */
+  var PV=50;
+  var argNames=["w","h","page","chapter","chapterNumber","chapterPct","bookPct","battery","batteryPct","em","min","max","abs","round","floor","ceil"];
+  var argVals=[W,H,1,1,1,PV,PV,PV,PV,16,Math.min,Math.max,Math.abs,Math.round,Math.floor,Math.ceil];
   s=String(s||"").replace(/\{=\s*([^{}]*)\}/g,function(_,e){
-    try{return String((new Function("w","h","page","chapterPct","return ("+e+")"))(W,H,1,50))}catch(err){return "0"}
+    try{return String((new Function(argNames,"return ("+e+")")).apply(null,argVals))}catch(err){return "0"}
   });
   return s.replace(/\{w\}/gi,W).replace(/\{h\}/gi,H).replace(/\{page\}/gi,1);
 }
@@ -3459,12 +3598,13 @@ function renderIconPage(){
     return;
   }
   list.innerHTML='<div class="pg-grid">'+ics.map(function(it){
+    var itags=pgTagChips(it);   /* 制作者胶囊 + 自定义标签，与进度条卡片同款 */
     return '<article class="pgcard iccard'+(extSelMode==="icon"&&extSelSet[it.id]?" esel-on":"")+((it&&it.pinned)?" pinned":"")+'" data-ic="'+it.id+'">'+CKMARK+
-      '<div class="pgthumb icthumb">'+((it.cover||it.svg)?'<img loading="lazy" draggable="false" src="'+(it.cover||progressThumbUri(it.svg))+'" alt="">':"")+'</div>'+
-      '<div class="icfoot"><div class="name">'+esc(it.name||"未命名")+'</div>'+
-      '<button class="more" data-act="menu" aria-label="更多操作" data-id="'+it.id+'">'+
-        '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>'+
-      '</button></div></article>';
+      '<div class="pgthumb icthumb'+(it.thumbBg==="dark"?" thumb-dark":"")+'">'+((it.cover||it.svg)?'<img loading="lazy" draggable="false" src="'+(it.cover||progressThumbUri(it.svg))+'" alt="">':"")+'</div>'+
+      '<div class="icfoot"><div class="icnameline"><div class="name">'+esc(it.name||"未命名")+'</div>'+
+      '<button class="more" data-act="menu" aria-label="更多操作" data-id="'+it.id+'">'+MORE_SVG+'</button></div>'+
+      (itags?'<span class="pgtags">'+itags+'</span>':"")+
+      '</div></article>';
   }).join("")+'</div>';
 }
 function openIconPage(){ if(selMode)exitSelect(); if(extOrgPage&&extOrgPage!=="icon")exitExtOrg(); renderIconPage(); $("#iconPage").classList.add("on"); document.body.style.overflow="hidden" }
@@ -3477,8 +3617,9 @@ function showSvgImport(prefType){
     '<div class="field" style="margin-top:10px"><label for="svgimp-maker">制作者（可选）</label>'+
     '<input class="input" id="svgimp-maker" maxlength="20" placeholder="例如：某某"></div>'+
     '<button class="btn-ghost" style="height:44px;justify-content:center" data-act="svgimp-file">选择 TXT / SVG 文件（可多选）</button>'+
-    '<div class="field" style="margin-top:10px"><label for="svgimp-text">或粘贴 SVG 源码</label>'+
+    '<div class="field" style="margin-top:10px"><div class="iclabelrow"><label for="svgimp-text">或粘贴 SVG 源码</label><button type="button" class="svgimp-clear" data-act="svgimp-clear" title="清空源码">清空</button></div>'+
     '<textarea class="input" id="svgimp-text" rows="6" spellcheck="false" placeholder="&lt;svg&gt;…&lt;/svg&gt;" style="font-family:ui-monospace,monospace;font-size:11px;line-height:1.5"></textarea></div>'+
+    '<div class="svgimp-preview pv-light" id="svgimpPreview"><button type="button" class="pv-bgbtn" data-act="svgimp-bg" title="切换预览底色">◐ 浅色</button><span class="pv-inner" id="svgimpPreviewInner"><span class="pv-ph">粘贴源码或选择文件后，这里显示预览效果</span></span></div>'+
     '<div class="field" style="margin-top:10px"><label>保存为<span class="svgimp-hint" id="svgimpGuess"></span></label>'+
     '<div class="svgimp-kinds">'+
     '<button class="btn-ghost" data-act="svgimp-kind" data-k="auto" id="svgimpAuto">自动识别</button>'+
@@ -3490,16 +3631,18 @@ function showSvgImport(prefType){
     '<button class="btn-ghost" data-act="svgimp-scope" data-k="auto" id="svgimpScopeAuto">自动识别</button>'+
     '<button class="btn-ghost" data-act="svgimp-scope" data-k="full">全文进度</button>'+
     '<button class="btn-ghost" data-act="svgimp-scope" data-k="chapter">章节进度</button>'+
-    '</div><p class="hint" style="margin:8px 0 0;font-size:11.5px">导入进度条时按源码里的「章 / 页码 / 全文」等字样自动判断是章节进度还是全文进度，万一识别错误点上面按钮手动改；之后也能在进度条 ⋯ 菜单「设置进度类型」里改。分组筛选弹层里可按进度类型筛选。</p></div>',
+    '<button class="btn-ghost" data-act="svgimp-scope" data-k="deco">纯装饰</button>'+
+    '</div><p class="hint" style="margin:8px 0 0;font-size:11.5px">导入进度条时按源码里的「章 / 页码 / 全文 / 装饰」等字样自动判断进度类型，万一识别错误点上面按钮手动改；不跟进度走的装饰图选「纯装饰」。之后也能在进度条 ⋯ 菜单「设置进度类型」里改，分组筛选弹层里可按进度类型筛选。</p></div>',
     '<button class="btn-ghost" data-act="sheet-cancel">取消</button>'+
     '<button class="btn-primary" style="width:auto;padding:0 16px" data-act="confirm-svgimp">保存</button>');
   svgimpKind=prefType||"auto";
   svgimpPref= prefType||"";
   svgimpScope="auto";
+  svgimpBg="light";   /* 每次打开预览底色回到浅色 */
   var ta=$("#svgimp-text");if(ta)ta.addEventListener("input",svgimpUpdateGuess);
-  /* 预填上一次用的制作者，连续导入同一作者的多条进度条不用重复输入 */
+  /* 制作者输入框每次打开都是空的，不会带出上一次填的名字 */
   var mi=$("#svgimp-maker");
-  if(mi){try{mi.value=localStorage.getItem("hb.lastMaker")||""}catch(e){}}
+  if(mi)mi.value="";
   svgimpUpdateGuess();
   syncSvgimpKind();
 }
@@ -3511,7 +3654,7 @@ function svgimpMakerVal(){
 function rememberMaker(mk){
   try{ if(mk)localStorage.setItem("hb.lastMaker",mk); else localStorage.removeItem("hb.lastMaker") }catch(e){}
 }
-var svgimpKind="auto", svgimpPref="", svgimpScope="auto";
+var svgimpKind="auto", svgimpPref="", svgimpScope="auto", svgimpBg="light";
 function syncSvgimpKind(){
   document.querySelectorAll("[data-act='svgimp-kind']").forEach(function(x){
     x.classList.toggle("on",x.getAttribute("data-k")===svgimpKind);
@@ -3520,6 +3663,13 @@ function syncSvgimpKind(){
     x.classList.toggle("on",x.getAttribute("data-k")===svgimpScope);
   });
 }
+function svgimpToggleBg(){
+  svgimpBg=(svgimpBg==="light")?"dark":"light";
+  var pv=$("#svgimpPreview");
+  if(pv){pv.classList.toggle("pv-light",svgimpBg==="light");pv.classList.toggle("pv-dark",svgimpBg==="dark")}
+  var btn=document.querySelector("#svgimpPreview [data-act='svgimp-bg']");
+  if(btn)btn.textContent=svgimpBg==="light"?"◐ 浅色":"◑ 深色";
+}
 function svgimpCurrentSvg(){
   var t=$("#svgimp-text");
   return extractSvg(t&&t.value?t.value:"");
@@ -3527,11 +3677,17 @@ function svgimpCurrentSvg(){
 function svgimpUpdateGuess(){
   var g=$("#svgimpGuess");if(!g)return;
   var svg=svgimpCurrentSvg();
+  /* 实时预览：粘贴源码 / 读取文件后立刻显示实际样子 */
+  var pv=$("#svgimpPreviewInner");
+  if(pv){
+    if(svg){var uri=progressThumbUri(svg);pv.innerHTML=uri?'<img src="'+uri+'" alt="预览">':'<span class="pv-ph">这段源码无法预览</span>'}
+    else pv.innerHTML='<span class="pv-ph">粘贴源码或选择文件后，这里显示预览效果</span>';
+  }
   if(!svg){g.textContent="粘贴源码后自动判断";var _sg0=$("#svgimpScopeGuess");if(_sg0)_sg0.textContent="";return}
   var k=svgAutoType(svg);
   g.textContent=svg?("识别为："+(k==="icon"?"单个图标":"进度条")):"";
   var sg=$("#svgimpScopeGuess");
-  if(sg)sg.textContent=(k==="progress")?(svgGuessScope(svg)==="chapter"?"（识别为：章节进度）":"（识别为：全文进度）"):"";
+  if(sg)sg.textContent=(k==="progress")?("（识别为："+pgScopeName(svgGuessScope(svg))+"）"):"";
 }
 /* 多选文件批量导入：每个文件独立解析 <svg>…、自动判定类型、用文件名命名 */
 function importSvgFiles(files,closeAfter){
@@ -3559,7 +3715,10 @@ function importSvgFiles(files,closeAfter){
         if(k==="progress")nP++;else nI++;
         var ni={name:base,type:k,svg:svg,size:svg.length};
         if(bulkMaker)ni.maker=bulkMaker;   /* 弹层里填了制作者时，批量导入的全部应用 */
-        if(k==="progress")ni.scope=(svgimpScope==="auto")?svgGuessScope(svg):svgimpScope;   /* 进度类型：自动识别或手动指定 */
+        if(k==="progress"){
+          ni.scope=(svgimpScope==="auto")?svgGuessScope(svg):svgimpScope;   /* 进度类型：自动识别或手动指定 */
+          if(svgimpScope!=="auto")ni.scopeManual=true;   /* 手动指定的，自愈不覆盖 */
+        }
         DB.items.unshift(normalize(ni));
       }else nBad++;
       tick();
@@ -3581,6 +3740,7 @@ function svgimpPickFile(){
       if(!svg){toast("文件里没找到 <svg>…</svg> 内容");return}
       var ta=$("#svgimp-text");if(ta)ta.value=svg;
       svgimpName=f.name.replace(/\.(txt|svg|text|html?)$/i,"").trim().slice(0,30);
+      var ni=$("#svgimp-name");if(ni)ni.value=svgimpName;   /* 名称框直接显示文件名 */
       svgimpUpdateGuess();
       toast("已读取「"+f.name+"」");
     };
@@ -3603,14 +3763,17 @@ function doSvgImport(){
   if(kind==="icon"){
     var io={name:name,type:"icon",svg:svg,size:svg.length};
     if(mk)io.maker=mk;
+    if(svgimpKind==="icon")io.typeManual=true;   /* 手动选「单个图标」：即使带模板也不被自愈转走 */
     DB.items.unshift(normalize(io));
     toast("已收藏图标「"+name+"」");
   }else{
     var po={name:name,type:"progress",svg:svg,size:svg.length};
     if(mk)po.maker=mk;
+    if(svgimpKind==="progress")po.typeManual=true;   /* 手动选「进度条」：锁定类型 */
     po.scope=(svgimpScope==="auto")?svgGuessScope(svg):svgimpScope;   /* 进度类型：自动识别或手动指定 */
+    if(svgimpScope!=="auto")po.scopeManual=true;   /* 手动指定的，自愈不覆盖 */
     DB.items.unshift(normalize(po));
-    toast("已收藏进度条「"+name+"」"+(mk?"（制作者："+mk+"）":"")+"（"+(po.scope==="chapter"?"章节进度":"全文进度")+"）");
+    toast("已收藏进度条「"+name+"」"+(mk?"（制作者："+mk+"）":"")+"（"+pgScopeName(pgScopeOf(po))+"）");
   }
   svgimpName="";
   save();render();closeSheet();
@@ -3618,8 +3781,8 @@ function doSvgImport(){
   if($("#iconPage").classList.contains("on"))renderIconPage();
   if($("#starPage")&&$("#starPage").classList.contains("on"))renderStarPage();
 }
-function openPgPage(){ if(selMode)exitSelect(); if(extOrgPage&&extOrgPage!=="pg")exitExtOrg(); syncPgSearch(); renderPgPage(); $("#pgPage").classList.add("on"); document.body.style.overflow="hidden"; setTimeout(layoutPgMasonry,60); setTimeout(layoutPgMasonry,350) }
-function closePgPage(){ if(extOrgPage==="pg")exitExtOrg(); if(extSelMode==="pg")exitExtSel(); $("#pgPage").classList.remove("on"); document.body.style.overflow=""; setTimeout(forceRepaint,30) }
+function openPgPage(){ if(selMode)exitSelect(); if(extOrgPage&&extOrgPage!=="pg")exitExtOrg(); $("#pgPage").classList.add("on"); document.body.style.overflow="hidden"; syncPgSearch(); renderPgPage(); layoutPgMasonry(); setTimeout(layoutPgMasonry,60); setTimeout(layoutPgMasonry,350); setTimeout(function(){$("#pgPage").classList.remove("pg-swap")},260) }
+function closePgPage(silent){ if(extOrgPage==="pg")exitExtOrg(); if(extSelMode==="pg")exitExtSel(); $("#pgPage").classList.remove("on"); document.body.style.overflow=""; if(!silent)setTimeout(forceRepaint,30) }
 var boxState={view:"grid",grp:"all",q:""};
 function boxItem(bi){return (curBundle&&Array.isArray(curBundle.items))?curBundle.items[bi]:null}
 function boxSyncSize(){ if(curBundle)curBundle.size=(curBundle.items||[]).reduce(function(a,b){return a+(b.size||0)},0) }
@@ -3914,6 +4077,9 @@ function openSheet(title,bodyHTML,footHTML,headHTML){
      同一弹层内换内容时若不清掉，通知 / 信箱 / 使用说明等弹层就会被顶到屏幕上方，
      内容又撑不满那个固定高度，底部便空出一大块。分组流程会在 openSheet 之后重新加回 gf-flow。 */
   $("#mask").classList.remove("gf-flow");
+  $("#mask").classList.remove("kb-open");
+  $("#mask").style.removeProperty("--vv-top");
+  $("#mask").style.removeProperty("--vv-h");
   $("#mask").classList.add("on");
   sheetOn=true;
   if(sh){sh.style.height="";sh.style.minHeight="";sh.style.maxHeight="";sh.classList.remove("stable-short")}
@@ -3925,6 +4091,9 @@ function openSheet(title,bodyHTML,footHTML,headHTML){
 function closeSheet(){
   $("#mask").classList.remove("on");
   $("#mask").classList.remove("gf-flow");
+  $("#mask").classList.remove("kb-open");
+  $("#mask").style.removeProperty("--vv-top");
+  $("#mask").style.removeProperty("--vv-h");
   sheetOn=false;
   if(typeof gfEdit==="object"&&gfEdit)for(var _gk in gfEdit)gfEdit[_gk]=false;  /* 关掉弹层后下次默认回到查看态 */
   var sh=document.querySelector(".sheet");
@@ -4544,8 +4713,11 @@ function showMenu(x,y,id,ctx){
       '<button data-mact="pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z"/></svg>'+(it.pinned?"取消置顶":"置顶")+'</button>'+
       '<button data-mact="export"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>导出文件</button>'+
       '<button data-mact="pgroup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M4 12h16M4 18h9"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/></svg>设置分组</button>'+
+      '<button data-mact="maker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>'+(it.maker?"设置制作者（"+esc(String(it.maker).slice(0,8))+"）":"设置制作者")+'</button>'+
+      '<button data-mact="toprog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg>移到进度条库</button>'+
       '<button data-mact="cover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>'+(it.cover?"更换封面":"上传封面")+'</button>'+
       (it.cover?'<button data-mact="cover-del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>移除封面</button>':"")+
+      '<button data-mact="thumbbg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor"/></svg>'+(it.thumbBg==="dark"?"缩略图底色（浅色）":"缩略图底色（深色）")+'</button>'+
       '<div class="sep"></div>'+
       '<button data-mact="del" class="danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>删除</button>';
   }else
@@ -4556,22 +4728,25 @@ function showMenu(x,y,id,ctx){
     '<button data-mact="pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z"/></svg>'+(it.pinned?"取消置顶":"置顶")+'</button>'+
     '<button data-mact="mine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.3.9-4.5 4.3 1 6.2-5.5-3-5.5 3 1-6.2L3 9.5l6.3-.9Z"/></svg>'+(it.mine?"移出我的工具":"加入我的工具")+'</button>'+
     (it.type==="progress"?'<button data-mact="star">'+STAR_SVG+(it.star?"取消收藏":"收藏到星标")+'</button>':"")+
-    (it.type==="progress"?'<button data-mact="cover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>'+(it.cover?"更换封面":"上传封面")+'</button>'+(it.cover?'<button data-mact="cover-del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>移除封面</button>':""):"")+
+    (it.type==="progress"?'<button data-mact="cover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>'+(it.cover?"更换封面":"上传封面")+'</button>'+(it.cover?'<button data-mact="cover-del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>移除封面</button>':"")+'<button data-mact="thumbbg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor"/></svg>'+(it.thumbBg==="dark"?"缩略图底色（浅色）":"缩略图底色（深色）")+'</button>':"")+
     '<button data-mact="move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>移动到文件夹</button>'+
     (it.type==="progress"||it.mine?'<button data-mact="pgroup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M4 12h16M4 18h9"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/></svg>设置分组</button>':"")+
     (it.type==="progress"||it.type==="icon"?'<button data-mact="maker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>'+(it.maker?"设置制作者（"+esc(String(it.maker).slice(0,8))+"）":"设置制作者")+'</button>':"")+
-    (it.type==="progress"?'<button data-mact="scope"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg>'+(pgScopeOf(it)==="chapter"?"进度类型（章节进度）":"进度类型（全文进度）")+'</button>':"")+
+    (it.type==="progress"?'<button data-mact="scope"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg>进度类型（'+pgScopeName(pgScopeOf(it))+'）</button>':"")+
+    (it.type==="progress"?'<button data-mact="toicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>移到图标库</button>':"")+
     (it.type!=="ref"?'<button data-mact="export"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>导出文件</button>':"")+
     (isWebLink(it)?'<button data-mact="copylink" data-url="'+esc(it.path)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>复制链接</button>':"")+
     '<div class="sep"></div>'+
     '<button data-mact="del" class="danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>删除</button>';
   m.classList.add("on");
+  /* 查看器页：菜单打开期间让 iframe 不截获点击，保证点画面能收起菜单（见 CSS .menu-open） */
+  if(ctx==="viewer")document.body.classList.add("menu-open");
   var w=m.offsetWidth,h=m.offsetHeight;
   var left=Math.min(Math.max(8,x-(ctx==="viewer"?w:0)),innerWidth-w-8);
   var top=Math.min(Math.max(8,y),innerHeight-h-8);
   m.style.left=left+"px";m.style.top=top+"px";
 }
-function hideMenu(){ $("#menu").classList.remove("on"); menuFor=null }
+function hideMenu(){ $("#menu").classList.remove("on"); document.body.classList.remove("menu-open"); menuFor=null }
 document.addEventListener("click",function(e){
   if(!e.target.closest("#menu"))hideMenu();
 });
@@ -4611,9 +4786,36 @@ $("#menu").addEventListener("click",function(e){
   if(act==="star"){ toggleStar(id) }
   if(act==="cover"){ pickCover(id) }
   if(act==="cover-del"){ it.cover="";delete it.cover;save();render();toast("已移除封面，恢复默认缩略图") }
+  if(act==="thumbbg"){
+    if(it.thumbBg==="dark"){ delete it.thumbBg }
+    else it.thumbBg="dark";
+    save();
+    var dark=it.thumbBg==="dark";
+    /* 只改当前 DOM 里这一条的缩略图底色，不重建整个列表——否则列表会跳回顶部。
+       数据已 save，其他页面下次打开会按 thumbBg 正确渲染。 */
+    var selectors='[data-pg="'+id+'"] .pgthumb,[data-pg="'+id+'"] .pthumb,'+
+                  '[data-ic="'+id+'"] .pgthumb,[data-id="'+id+'"] .pthumb';
+    [].slice.call(document.querySelectorAll(selectors)).forEach(function(el){
+      el.classList.toggle("thumb-dark",dark)
+    });
+    toast(dark?"缩略图已换深色底":"缩略图已换浅色底");
+  }
   if(act==="pgroup"){ showGroupSheet(id) }
   if(act==="maker"){ showMakerSheet(id) }
   if(act==="scope"){ showScopeSheet(id) }
+  if(act==="toicon"||act==="toprog"){
+    var want=act==="toicon"?"icon":"progress";
+    if(it.type!==want){
+      it.type=want;it.typeManual=true;   /* 主动移动就是明确选择，锁定不被自愈改回 */
+      if(want==="progress"&&it.scope!=="chapter"&&it.scope!=="deco")it.scope="full";
+      save();
+      try{if(currentId===id)closeViewer(true)}catch(e){}
+      render();
+      if($("#pgPage").classList.contains("on"))renderPgPage();
+      if($("#iconPage").classList.contains("on"))renderIconPage();
+      toast(want==="icon"?"已移到图标库":"已移到进度条库");
+    }
+  }
   if(act==="move"){ selSet={};selSet[id]=true;showMoveSheet() }
   if(act==="export"){ exportItem(it) }
   if(act==="copylink"){
@@ -4749,18 +4951,20 @@ function showScopeSheet(id){
     '<div class="svgimp-kinds">'+
     '<button class="btn-ghost'+(cur==="full"?" on":"")+'" data-act="scope-set" data-v="full" data-sid="'+esc(id)+'">全文进度</button>'+
     '<button class="btn-ghost'+(cur==="chapter"?" on":"")+'" data-act="scope-set" data-v="chapter" data-sid="'+esc(id)+'">章节进度</button>'+
+    '<button class="btn-ghost'+(cur==="deco"?" on":"")+'" data-act="scope-set" data-v="deco" data-sid="'+esc(id)+'">纯装饰</button>'+
     '</div>'+
-    '<p class="hint" style="margin-top:10px">「全文进度」按整本书的百分比走（如 36.5%），「章节进度」按章内页码或章节进度走。保存后可在进度条库「分组筛选」弹层里按进度类型筛选。</p>',
+    '<p class="hint" style="margin-top:10px">「全文进度」按整本书的百分比走（如 36.5%），「章节进度」按章内页码或章节进度走，「纯装饰」是不跟阅读进度走的装饰图。保存后可在进度条库「分组筛选」弹层里按进度类型筛选。</p>',
     '<button class="btn-ghost" data-act="sheet-cancel">取消</button>');
 }
 function doScopeSet(id,v){
   var it=DB.items.find(function(a){return a.id===id});if(!it)return;
-  it.scope=(v==="chapter")?"chapter":"full";
+  it.scope=(v==="chapter"||v==="deco")?v:"full";
+  it.scopeManual=true;   /* 用户手动选的，启动自愈不再按源码覆盖 */
   save();
   if($("#pgPage").classList.contains("on"))renderPgPage();
   if($("#starPage")&&$("#starPage").classList.contains("on"))renderStarPage();
   closeSheet();
-  toast(it.scope==="chapter"?"已设为章节进度":"已设为全文进度");
+  toast("已设为"+pgScopeName(it.scope));
 }
 /* ---------------------- 分组（进度条库 / 图标库） ---------------------- */
 function showGroupSheet(id){
@@ -4846,7 +5050,7 @@ function showHelp(){
     '<li>在系统分享面板选<b>存储到“文件”</b>，存一份 <span class="kbd">收纳盒备份.html</span>；</li>'+
     '<li>已存在同名文件时 iOS 会提示「<b>替换</b>」，点替换即完成更新备份。</li></ol>'+
     '<p class="hint">日常不导出也不影响使用；但换设备、清数据、删图标之前，先确认备份是最新的。</p>'+
-    '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg><div><b>怎么判断备份是否正常：</b>如果导出的备份文件只有 <b>430KB</b> 左右（基本就是一个空的收纳盒骨架，里面没有工具内容），说明它是<strong>错误文件</strong>（旧缓存版本导出的）。解决方法：先在浏览器里刷新一次网站，再彻底关闭并重开桌面图标后重新导出；仍不行就删除桌面图标、在浏览器重新「添加到主屏幕」。正常的备份会更大，具体取决于你收藏了多少工具。</div></div>'+
+    '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg><div><b>怎么判断备份是否正常：</b>如果导出的备份文件只有 <b>450KB</b> 左右（基本就是一个空的收纳盒骨架，里面没有工具内容），说明它是<strong>错误文件</strong>（旧缓存版本导出的）。解决方法：先在浏览器里刷新一次网站，再彻底关闭并重开桌面图标后重新导出；仍不行就删除桌面图标、在浏览器重新「添加到主屏幕」。正常的备份会更大，具体取决于你收藏了多少工具。</div></div>'+
     '<h2>换设备 / 数据丢失后恢复</h2>'+
     '<ol><li>打开收纳盒（在线链接或新文件）；</li>'+
     '<li>点「添加」→<b>选择 HTML 文件</b>，选中之前备份的 <span class="kbd">收纳盒备份.html</span>，里面的工具会被识别恢复；</li>'+
@@ -4859,9 +5063,9 @@ function showHelp(){
     '<li>多选后点「导出」：可单独导出多个文件，或打包成一个迷你收纳盒 HTML（再导入时可选拆分或变成盒中盒）；</li>'+
     '<li>卡片若出现橙色<b>“缺内容”</b>标签，表示该工具的正文不在当前文件里，重新导入一次即可；</li>'+
     '<li>各库工具行的<b>漏斗</b>可展开全部分组、把常用分组置顶，点「编辑」还能重命名 / 删除 / 拖动排序，点「＋ 新建分组」可直接建空分组（建好就立刻出现在 ⋯ 菜单「设置分组」里，点一下即可填入，不用重新手输）；<b>视图按钮</b>循环切换排列方式（进度条库 / 星标页可在预览网格 / 单行列表 / 三列 / 流动胶囊之间切换，流动胶囊宽度随文字走）；</li><li><b>整理排序</b>：我的工具 / 进度条库 / 图标库 / 盒中盒工具行都有「整理」按钮，点开后<b>长按卡片直接拖动</b>就能改顺序，顺序会保存下来，再点一次「整理」退出；主页面的整理按钮用法一样；</li>'+
-    '<li><b>制作者（进度条库 / 图标库）</b>：导入时可填制作者，或点条目 ⋯ 菜单「设置制作者」、多选后点「设置制作者」<b>批量改</b>（留空即清除）；标签显示在卡片最前面，只写名字不带 @；没填制作者的在筛选里归入「未归类」（为 0 时自动隐藏）。漏斗「分组筛选」弹层点「编辑」可切「<b>编辑分组 / 编辑制作者</b>」：编辑制作者时可 ✎ <b>重命名</b>（该制作者下全部条目同步改名）、长按 ⠿ <b>拖动排序</b>；需给进度条 / 图标单独换缩略图，用 ⋯ 菜单「上传封面」（自动压缩、随备份走，可更换 / 移除）；</li>'+
+    '<li><b>制作者（进度条库 / 图标库）</b>：导入时可填制作者，或点条目 ⋯ 菜单「设置制作者」、多选后点「设置制作者」<b>批量改</b>（留空即清除）；没填制作者的在筛选里归入「未归类」（为 0 时自动隐藏）。漏斗「分组筛选」弹层点「编辑」可切「<b>编辑分组 / 编辑制作者</b>」：编辑制作者时可 ✎ <b>重命名</b>（该制作者下全部条目同步改名）、长按 ⠿ <b>拖动排序</b>；需给进度条 / 图标单独换缩略图，用 ⋯ 菜单「上传封面」（自动压缩、随备份走，可更换 / 移除）；</li>'+
     '<li><b>批量移动分组</b>：进度条库 / 图标库 / 我的工具 / 星标页点「多选」勾选后，点「<b>移动分组</b>」一次把勾选项归到同一分组（点已有分组可快速填入，留空即移出分组）；盒中盒里的「移动到…」是把文件抽到外面的文件夹，两者不同。主页面多选时进入这些库会自动退出主页面多选；</li>'+
-    '<li><b>全文 / 章节进度</b>：导入 SVG 进度条会按源码里的「章 / 页码 / 全文」等字样自动识别类型，弹层会显示识别结果；怕识别错可在导入弹层「进度类型」一行手动选，导入后也能在 ⋯ 菜单「设置进度类型」随时改；进度条库「分组筛选」弹层的「进度类型」区可按全文 / 章节筛选，搜索「章节 / 全文」也能按类型搜；</li>'+
+    '<li><b>全文 / 章节进度 / 纯装饰</b>：导入 SVG 进度条会按源码里的「章 / 页码 / 全文 / 装饰」等字样自动识别类型，弹层会显示识别结果；怕识别错可在导入弹层「进度类型」一行手动选（不跟进度走的装饰图选「纯装饰」），导入后也能在 ⋯ 菜单「设置进度类型」随时改；进度条库「分组筛选」弹层的「进度类型」区可按类型筛选，搜索「章节 / 全文 / 装饰」也能按类型搜；点「全部」分组会自动清除制作者筛选；</li>'+
     '<li><b>导入</b>：点「添加」→「粘贴 / 导入 SVG」或选文件（可多选），会按内容自动识别进度条 / 图标并收进对应库；多选时<b>子文件夹也能勾选</b>，移动 / 导出会自动带上文件夹里的全部内容；</li>'+
     '<li>「设置 → 查重」找出重复的网址和内容相同的文件（盒中盒里的也一起查，位置会标出所属盒中盒），核对位置后勾选删除；</li>'+
     '<li>数据保存在浏览器本地：不要清除本站数据、不要删除主屏幕图标。</li></ul>'+
@@ -4965,7 +5169,7 @@ document.addEventListener("click",function(e){
   if(gfsc){
     pgState.scope=gfsc.getAttribute("data-gfsc")||"";
     gfRerender("pg");closeSheet();
-    toast(pgState.scope==="chapter"?"已筛选章节进度":"已筛选全文进度");
+    toast(pgState.scope?("已筛选"+pgScopeName(pgState.scope)):"已显示全部进度类型");
     return;
   }
   var gfscc=t.closest('[data-act="gf-sc-clear"]');
@@ -5201,6 +5405,13 @@ if(t.closest('[data-act="exp-pack-box"]')){doSelExportPack();return}
     case "add-progress": showSvgImport(""); break;
     case "pg-import": pgImportFile(); break;
     case "confirm-progress": doProgressAdd(); break;
+    case "svgimp-bg": svgimpToggleBg(); break;
+    case "svgimp-clear": {
+      var ta=$("#svgimp-text"); if(ta){ta.value="";ta.focus()}
+      svgimpUpdateGuess(); /* 同步刷新预览占位与识别提示 */
+      var fi=$("#filePick"); if(fi)fi.value=""; /* 允许再次选择同一文件 */
+      break;
+    }
     case "svgimp-file": svgimpPickFile(); break;
     case "svgimp-kind":
       svgimpKind=btn.getAttribute("data-k")||"auto";
@@ -5880,14 +6091,51 @@ function moveToFolder(fid){
 (function(){
   var vv=window.visualViewport;
   if(!vv)return;
-  function onResize(){
-    var sheet=$("#sheet");
-    if(!sheet)return;
-    var overlap=Math.max(0,innerHeight-vv.height-vv.offsetTop);
-    sheet.style.maxHeight=overlap>80?(innerHeight-overlap-12)+"px":"";
+  var mask=document.getElementById("mask");
+  var raf=0;
+  /* body 被 position:fixed 锁定后，iOS Safari 聚焦输入框时不会自动滚动 .sheet-body，
+     导致正在输入的 textarea/input 大半被弹层顶边裁掉（点「粘贴 SVG 源码」尤其明显）。
+     这里主动把当前聚焦的输入框滚动到内容区可见位置。 */
+  function revealFocused(){
+    var sb=document.getElementById("sheetBody");
+    if(!sb||!mask.classList.contains("kb-open"))return;
+    var el=document.activeElement;
+    if(!el||!/^(INPUT|TEXTAREA)$/.test(el.tagName)||!sb.contains(el))return;
+    var sr=sb.getBoundingClientRect(), er=el.getBoundingClientRect();
+    var pad=14;
+    var delta=0;
+    if(er.top<sr.top+pad)delta=er.top-sr.top-pad;             /* 顶部被裁 → 上滚 */
+    else if(er.bottom>sr.bottom-pad)delta=er.bottom-sr.bottom+pad; /* 底部被裁 → 下滚 */
+    if(delta)sb.scrollTop+=delta;
   }
+  function apply(){
+    raf=0;
+    if(!mask||!mask.classList.contains("on"))return;
+    var overlap=Math.max(0,innerHeight-vv.height-vv.offsetTop);
+    if(overlap>60){
+      /* 写入键盘上方可视区的真实坐标：offsetTop 是可视区顶边距，height 是可视区高度。
+         CSS 直接拿这两个值定位弹层，绝不再叠减 dvh / overlap，避免弹层被压扁或跳动。 */
+      mask.classList.add("kb-open");
+      mask.style.setProperty("--vv-top",Math.round(vv.offsetTop)+"px");
+      mask.style.setProperty("--vv-h",Math.round(vv.height)+"px");
+      /* 布局写入后下一帧再滚动聚焦框，确保拿到的是键盘弹起后的位置 */
+      requestAnimationFrame(function(){ setTimeout(revealFocused,0) });
+    }else{
+      mask.classList.remove("kb-open");
+      mask.style.removeProperty("--vv-top");
+      mask.style.removeProperty("--vv-h");
+    }
+  }
+  function onResize(){ if(!raf)raf=requestAnimationFrame(apply) }  /* 键盘动画期间合并多次事件，消除抖动 */
   vv.addEventListener("resize",onResize);
   vv.addEventListener("scroll",onResize);
+  /* focus 可能晚于键盘 resize，补一次：聚焦输入元素时若键盘已开则滚动到可见 */
+  document.addEventListener("focusin",function(e){
+    if(!mask||!mask.classList.contains("kb-open"))return;
+    var el=e.target;
+    if(!el||!/^(INPUT|TEXTAREA)$/.test(el.tagName))return;
+    setTimeout(revealFocused,60);
+  },true);
 })();
 
 /* ============ 顶栏 / 搜索 / 筛选 ============ */
@@ -6073,6 +6321,9 @@ function buildProgressDoc(it){
   var SRC=JSON.stringify(String(it.svg||"")).replace(/<\//g,"<\\/");
   var IID=JSON.stringify(String(it.id||""));
   var NAME=JSON.stringify(String(it.name||"进度条"));
+  var SCOPE=JSON.stringify(pgScopeOf(it));
+  /* 卡片设过深色底的，打开查看器时预览背景也默认深色（checker/white/dark/warm 之一） */
+  var BG=JSON.stringify(it.thumbBg==="dark"?"dark":"warm");
   return '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">'+
 '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'+
 '<style>'+
@@ -6125,7 +6376,7 @@ themeOverrideCSS()+
 '</section>'+
 '<div class="toast" id="toast"></div>'+
 '<script>'+
-'var SRC='+SRC+',ITEM_ID='+IID+',ITEM_NAME='+NAME+';'+
+'var SRC='+SRC+',ITEM_ID='+IID+',ITEM_NAME='+NAME+',SCOPE='+SCOPE+',INIT_BG='+BG+';'+
 '(function(){'+
 '"use strict";'+
 'var $=function(s){return document.querySelector(s)};'+
@@ -6271,7 +6522,11 @@ themeOverrideCSS()+
 '$("#patternSize").oninput=function(){setPattern($("#patternSize").value)};'+
 'window.addEventListener("resize",applyScale);'+
 'function init(){var kind;try{kind=detectKind(SRC)}catch(e){kind="chapter"}'+
-'$("#badge").textContent=progressLabel(kind);'+
+'/* 深色底的条目：打开即用深色预览背景，并点亮对应色块 */'+
+'if(INIT_BG&&INIT_BG!=="warm"){'+
+'$("#stage").className="stage "+INIT_BG;'+
+'[].slice.call(document.querySelectorAll(".swatch")).forEach(function(x){x.classList.toggle("active",x.getAttribute("data-bg")===INIT_BG)})}'+
+'$("#badge").textContent=SCOPE==="deco"?"纯装饰":SCOPE==="chapter"?"章节进度":"全文进度";'+
 '/* 只在打开时构建一次 DOM；之后拖进度/改大小都只更新属性，动画不重播 */'+
 'try{var root=sanitize(SRC);viewBox=sourceBox(root);'+
 'collectDyn(root);applyVals(valsFor(pct));buildClips(root);updateProgress();'+
@@ -6466,6 +6721,9 @@ $("#btnBack").addEventListener("click",function(){
 $("#btnVMore").addEventListener("click",function(e){
   e.stopPropagation();
   if(currentId===null)return;
+  /* 菜单已开时再点 ⋯ 直接收起（切换语义） */
+  var m=document.getElementById("menu");
+  if(m&&m.classList.contains("on")&&menuFor&&menuFor.id===currentId){hideMenu();return}
   var r=this.getBoundingClientRect();
   showMenu(r.right,r.bottom+6,currentId,"viewer");
 });
@@ -6517,11 +6775,18 @@ load();
 render();
 hydrate().then(function(){
   /* 自愈：旧版本把含 {w}/{h}/{=} 占位符的阅读器进度条模板误识别成图标收进了图标库。
-     带模板占位符的不可能是图标，启动时自动转回进度条库（只动这一类，静态图形不碰）。
-     放在 hydrate 之后：大内容 svg 存在 IndexedDB，要先等它填回才能检查 */
+     带模板占位符的自动识别成图标时，启动时转回进度条库（只动这一类，静态图形不碰）。
+     注意：若用户在导入弹层手动选了「单个图标」（typeManual 标记），说明就是要当图标收着，
+     尊重其选择、绝不转走；放在 hydrate 之后：大内容 svg 存在 IndexedDB，要先等它填回才能检查 */
   var n=0;
   DB.items.forEach(function(it){
-    if(it.type==="icon"&&it.svg&&svgHasTpl(it.svg)){it.type="progress";n++}
+    if(it.type==="icon"&&!it.typeManual&&it.svg&&svgHasTpl(it.svg)){it.type="progress";n++}
+    /* 自愈：旧版识别逻辑没读 data-progress 值、又被注释里的「装饰」等字样干扰，
+       把章节进度条误存成了全文进度或纯装饰。启动时按源码重新判断，
+       只要源码确为章节进度就纠正回来；只动用户没手动设过进度类型的条目，尊重手动选择 */
+    if(it.type==="progress"&&!it.scopeManual&&it.scope!=="chapter"&&it.svg&&svgGuessScope(it.svg)==="chapter"){
+      it.scope="chapter";n++;
+    }
   });
   if(n){try{save();render()}catch(e){}}
 });
@@ -6555,6 +6820,13 @@ setTimeout(function(){
 },3000);
 /* 站点通知：最新一条弹一次，所有版本更新通知存档在顶栏 ✉ 信件图标里随时翻看 */
 var NOTICES=[
+ {id:"3.3",title:"3.3版本更新通知",date:"11月17日",body:
+  '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div><b>进度类型新增「纯装饰」：</b>有些进度条其实是纯装饰图（不跟阅读进度走），导入弹层的「进度类型」一行和进度条库「分组筛选」弹层都新增了「<b>纯装饰</b>」选项，源码里出现「装饰」字样会自动识别；导入后也能在 ⋯ 菜单「设置进度类型」里随时改。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20a7 7 0 0 1 14 0"/></svg><div><b>图标库制作者补全：</b>图标的 ⋯ 菜单里新增「<b>设置制作者</b>」，设置后图标卡片上也会显示制作者标签（和进度条同款样式）；分组筛选弹层里点制作者胶囊即可筛选。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><div><b>筛选联动更顺手：</b>「分组筛选」弹层里点「<b>全部</b>」分组时会<b>自动清除制作者筛选</b>，不用再手动点「清除筛选」；导入 SVG 弹层的制作者输入框每次打开都是空的，不会带出上一次填的名字。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M6 20V9m6 11V9m6 11V9"/></svg><div><b>多选不再挡住最后一排：</b>多选状态下列表底部自动留出多选条的高度，最后一排的文件可以正常点选，不会被浮在上面的多选条挡住。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m21 16-5-5L5 20"/></svg><div><b>导入前先看效果：</b>「导入 SVG / TXT」弹层里新增<b>实时预览</b>，粘贴源码或选好文件后，下方立刻显示这条进度条 / 图标实际长什么样；选单个文件时<b>名称框会自动填入文件名</b>，不用再手输。另外修正了单独查看页右上角的进度类型标记：现在显示你在 ⋯ 菜单里设置的<b>进度类型</b>（全文进度 / 章节进度 / 纯装饰），不再按源码内容猜；签名、丝带这类没有进度标记的长条图，导入时也会<b>自动识别成纯装饰</b>。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M6 14h12"/></svg><div><b>输入不再挤乱页面：</b>点输入框弹出键盘时，弹层会自动缩到可视区并把正在输入的框露出来，不会再出现内容空白或页面错位。</div></div>'},
  {id:"3.2",title:"3.2版本更新通知",date:"11月16日",body:
   '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 9h16M9 4v5"/></svg><div><b>修复：分组筛选弹层被压扁。</b>之前在 iPhone 上打开「分组筛选」「新建分组」等弹层时，弹层高度偶尔被锁死在旧值上，列表被压扁只剩一两行、底下空一大块。现在弹层高度完全交给内容自适应，<b>不再可能出现锁死</b>；分组特别多时列表内部滚动，底部按钮始终贴着弹层底边。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div><b>进度条库 / 图标库支持上传自定义封面：</b>条目的 ⋯ 菜单里新增「<b>上传封面</b>」，选一张图片，列表缩略图就换成你的封面（不再显示自动生成的预览）；上传后菜单里可「更换封面」「移除封面」，移除即恢复默认。封面会自动压缩（最长边 640px）不占空间，<b>随备份一起导出导入，刷新不丢</b>。</div></div>'+
@@ -6803,7 +7075,7 @@ function siteNotice(){
 siteNotice();
 
 // 调试句柄：控制台排查用户问题用
-window.__hb={DB:DB,save:save,hydrate:hydrate,cdbAll:cdbAll,buildSelfContained:buildSelfContained,render:render,setView:setView,viewMode:viewMode,openBoxPage:openBoxPage,renderBoxPage:renderBoxPage,NOTICES:NOTICES,svgAutoType:svgAutoType,svgKind:svgKind,importSvgFiles:importSvgFiles,toggleStar:toggleStar,renderPgPage:renderPgPage,renderStarPage:renderStarPage,extPackName:extPackName,pgState:pgState,iconState:iconState,showGroupFilter:showGroupFilter,showSvgImport:showSvgImport,showScopeSheet:showScopeSheet,svgGuessScope:svgGuessScope,showNoticeDetail:(typeof showNoticeDetail==="function")?showNoticeDetail:null};
+window.__hb={DB:DB,save:save,hydrate:hydrate,cdbAll:cdbAll,buildSelfContained:buildSelfContained,render:render,setView:setView,viewMode:viewMode,openBoxPage:openBoxPage,renderBoxPage:renderBoxPage,openItem:openItem,buildProgressDoc:buildProgressDoc,NOTICES:NOTICES,svgAutoType:svgAutoType,svgKind:svgKind,importSvgFiles:importSvgFiles,toggleStar:toggleStar,renderPgPage:renderPgPage,renderStarPage:renderStarPage,renderIconPage:renderIconPage,extPackName:extPackName,pgState:pgState,iconState:iconState,showGroupFilter:showGroupFilter,showSvgImport:showSvgImport,showScopeSheet:showScopeSheet,svgGuessScope:svgGuessScope,showNoticeDetail:(typeof showNoticeDetail==="function")?showNoticeDetail:null};
 
 // 自愈：个别内置 WebView（WKWebView）初次加载不绘制列表内容，
 // 强制创建合成层并触发一次重绘
