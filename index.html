@@ -916,9 +916,11 @@ body.esel .flowview .ckmark{display:grid}
 .pill:hover{box-shadow:var(--shadow-lg)}
 .pill:active{transform:scale(.96)}
 .pill .sz{font-size:11px;color:var(--text-3);font-weight:550;font-variant-numeric:tabular-nums}
-.pill .more{position:static;width:22px;height:22px;border-radius:999px;display:grid;place-items:center;
+.pill .more{position:relative;width:22px;height:22px;border-radius:999px;display:grid;place-items:center;
   color:var(--text-3);background:transparent;opacity:1;flex:none}
-.pill .more svg{width:13px;height:13px}
+/* 扩大 ⋯ 的触摸热区，避免手指点偏落到名称上误打开（尤其网页链接） */
+.pill .more::before{content:"";position:absolute;left:-8px;right:-8px;top:-12px;bottom:-12px;border-radius:999px}
+.pill .more svg{width:13px;height:13px;pointer-events:none}
 .pill.ref{border-style:dashed}
 /* 我的工具 · 紧凑列表：一行一排铺满整行，行距加大，不显示体积数字 */
 #mineList.pillview{gap:18px}
@@ -1022,7 +1024,7 @@ body.extorg .extpage.on #pgList>*,body.extorg .extpage.on #mineList>*,body.extor
 .pgthumb img,.icthumb img,.pthumb img{-webkit-user-drag:none;user-select:none;pointer-events:none}
 
 /* 多选 */
-body.selecting{padding-bottom:calc(88px + var(--safe-b))}
+body.selecting{padding-bottom:calc(130px + var(--safe-b))}
 .selbar{
   position:fixed;z-index:75;left:12px;right:12px;bottom:calc(14px + var(--safe-b));
   display:none;flex-direction:column;align-items:stretch;gap:9px;
@@ -1655,7 +1657,7 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
 "use strict";
 
 /* ---------------------- 诊断：版本号 + 错误显示条 ---------------------- */
-var APP_VER="v3",BUILD_ID="b1116a",VER_LABEL="3.3";/* VER_LABEL：页面对外显示版本号；BUILD_ID 为内部构建标识（版本检测/通知匹配用），保持不变 */
+var APP_VER="v3",BUILD_ID="b1116a",VER_LABEL="3.4";/* VER_LABEL：页面对外显示版本号；BUILD_ID 为内部构建标识（版本检测/通知匹配用），保持不变 */
 window.__hbver=APP_VER;
 function showErrBar(msg){
   try{
@@ -4467,6 +4469,55 @@ function downloadText(text,filename){
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(function(){URL.revokeObjectURL(url)},8000);
 }
+/* ============ 导出网页链接为 TXT：按文件夹分类列出所有网址（含网站名称） ============
+   顶层网页链接按所在文件夹（含层级路径）分组，「我的工具」「未分类」单独成组；
+   盒中盒里的网页链接归到「盒中盒 · <包名>」组，保证「所有网页网址」都被导出。 */
+function exportWebLinksTxt(){
+  var groups={},order=[];
+  function addTo(g,item){ if(!groups[g]){groups[g]=[];order.push(g)} groups[g].push(item) }
+  function groupOf(it){
+    if(it.folder){var p=folderPath(it.folder);if(p.length)return p.map(function(f){return f.name}).join(" / ")}
+    if(it.mine)return "我的工具";
+    return "未分类";
+  }
+  var total=0;
+  DB.items.forEach(function(top){
+    if(!top)return;
+    if(top.type==="bundle"&&Array.isArray(top.items)){
+      var bn="盒中盒 · "+(top.name||"未命名");
+      (function walk(list,depth){
+        if(!Array.isArray(list)||depth>4)return;
+        list.forEach(function(x){
+          if(!x)return;
+          if(x.type==="bundle"&&Array.isArray(x.items)){walk(x.items,depth+1);return}
+          if(isWebLink(x)){addTo(bn,{name:String(x.name||""),url:String(x.path||"")});total++}
+        });
+      })(top.items,0);
+    }else if(isWebLink(top)){
+      addTo(groupOf(top),{name:String(top.name||""),url:String(top.path||"")});total++;
+    }
+  });
+  if(!total){toast("还没有收藏任何网页链接");return}
+  var L=[];
+  L.push("收纳盒 · 网页链接清单");
+  L.push("导出时间："+new Date().toLocaleString("zh-CN"));
+  L.push("共 "+total+" 个网页链接，按分类排列");
+  L.push("");
+  order.forEach(function(g){
+    L.push("━━━━━━━━━━━━━━━━━━━━");
+    L.push("【"+g+"】（"+groups[g].length+"）");
+    L.push("━━━━━━━━━━━━━━━━━━━━");
+    L.push("");
+    groups[g].forEach(function(it){
+      /* TXT 是纯文本，无法真正设字号 / 粗体：用「★ + 顶格独占一行 + 网址缩进」把网站名称做成视觉重点 */
+      L.push("★ "+(it.name||"（未命名）"));
+      L.push("   ↳ "+it.url);
+      L.push("");
+    });
+  });
+  downloadText(L.join("\n"),"收纳盒-网页链接.txt");
+  toast("已导出 "+total+" 个网页链接");
+}
 /* ============ 多选导出：单独导出 / 打包成迷你收纳盒 ============ */
 function selExportItems(){
   var its=Object.keys(selSet).map(function(id){return DB.items.find(function(x){return x.id===id})}).filter(Boolean);
@@ -5050,6 +5101,7 @@ function showHelp(){
     '<li>在系统分享面板选<b>存储到“文件”</b>，存一份 <span class="kbd">收纳盒备份.html</span>；</li>'+
     '<li>已存在同名文件时 iOS 会提示「<b>替换</b>」，点替换即完成更新备份。</li></ol>'+
     '<p class="hint">日常不导出也不影响使用；但换设备、清数据、删图标之前，先确认备份是最新的。</p>'+
+    '<p class="hint" style="margin-top:6px">只想整理网址：点顶栏<b>下载图标</b> →「<b>导出网页链接（.txt）</b>」，会把收藏的所有网页网址按文件夹分类导出成文本文件，每条都带网站名称。</p>'+
     '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg><div><b>怎么判断备份是否正常：</b>如果导出的备份文件只有 <b>450KB</b> 左右（基本就是一个空的收纳盒骨架，里面没有工具内容），说明它是<strong>错误文件</strong>（旧缓存版本导出的）。解决方法：先在浏览器里刷新一次网站，再彻底关闭并重开桌面图标后重新导出；仍不行就删除桌面图标、在浏览器重新「添加到主屏幕」。正常的备份会更大，具体取决于你收藏了多少工具。</div></div>'+
     '<h2>换设备 / 数据丢失后恢复</h2>'+
     '<ol><li>打开收纳盒（在线链接或新文件）；</li>'+
@@ -5254,6 +5306,8 @@ document.addEventListener("click",function(e){
     }
     return;
   }
+  /* 文件夹整理模式：点卡片本体只用于排序/拖动，不打开内容（点 ⋯ 已在前面处理） */
+  if(state.folderEdit&&(t.closest(".card,.pill,.boxcard[data-id],.boxrow[data-id]")))return;
   var card=t.closest(".card");
   if(card&&!t.closest(".more")){
     if(selMode){toggleSel(card.getAttribute("data-id"));return}
@@ -5453,6 +5507,7 @@ if(t.closest('[data-act="exp-pack-box"]')){doSelExportPack();return}
     case "confirm-box-del": deleteBoxItem(+($("#sheetFoot").lastElementChild.dataset.boxIdx||-1)); break;
     case "box-exp-one": doBoxExportOne(+($("#sheetBody").dataset.boxIdx||-1),btn.getAttribute("data-fmt")); break;
     case "export": doExport(); break;
+    case "export-weblinks": exportWebLinksTxt(); break;
     case "exp-one": doExportOne($("#sheetBody").dataset.expId,btn.getAttribute("data-fmt")); break;
     case "copy": copySelfContained(); break;
     case "confirm-del": deleteItem(btn.dataset.delId); break;
@@ -6149,9 +6204,10 @@ $("#btnExport").addEventListener("click",function(){
     '<p class="hint" style="margin-top:0">'+(inFile?"把当前收纳盒（含全部工具内容）打包成一个独立 HTML 文件。":"网页模式的数据保存在这个网址的空间里，日常无需导出。导出文件可作备份，或搬到别的设备用。")+'</p>'+
     '<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">'+
     '<button class="btn-ghost" style="height:48px;justify-content:center" data-act="export">导出单文件（.html）</button>'+
+    '<button class="btn-ghost" style="height:48px;justify-content:center" data-act="export-weblinks">导出网页链接（.txt · 按分类）</button>'+
     '<button class="btn-ghost" style="height:48px;justify-content:center" data-act="copy">复制全部源码</button>'+
     '</div>'+
-    '<p class="hint" style="margin-top:10px">换设备或清理数据前，记得先导出一份备份到「文件」App。</p>',
+    '<p class="hint" style="margin-top:10px">「导出网页链接」会把你收藏的所有网址按分类整理成 TXT（含网站名称）。换设备或清理数据前，记得先导出一份备份到「文件」App。</p>',
     '<button class="btn-ghost" data-act="sheet-cancel">取消</button>');
 });
 /* 从「我的工具」独立页发起的导入：新工具自动加入「我的工具」（导入期间该页始终处于打开态） */
@@ -6820,6 +6876,10 @@ setTimeout(function(){
 },3000);
 /* 站点通知：最新一条弹一次，所有版本更新通知存档在顶栏 ✉ 信件图标里随时翻看 */
 var NOTICES=[
+ {id:"3.4",title:"3.4版本更新通知",date:"11月19日",body:
+  '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><div><b> ⋯ 按钮不再误打开网页：</b>列表视图下，部分胶囊点右侧「<b>⋯</b>」会连条目一起打开（尤其是网页链接），现在已经修好——点 ⋯ 只会弹出菜单，不会误跳转。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><div><b>多选不再挡住最后一排：</b>多选时底部弹出的操作条会盖住最下面的胶囊，现在列表底部会自动留出足够空间，最下面一排也能正常点选。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg><div><b>网页链接可导出成 TXT：</b>点顶栏<b>下载图标</b> →「<b>导出网页链接（.txt）</b>」，会把你收藏的所有网页网址<b>按文件夹分类</b>整理成一个文本文件，每条都带上<b>网站名称</b>和网址，方便备份或分享。</div></div>'},
  {id:"3.3",title:"3.3版本更新通知",date:"11月17日",body:
   '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div><b>进度类型新增「纯装饰」：</b>有些进度条其实是纯装饰图（不跟阅读进度走），导入弹层的「进度类型」一行和进度条库「分组筛选」弹层都新增了「<b>纯装饰</b>」选项，源码里出现「装饰」字样会自动识别；导入后也能在 ⋯ 菜单「设置进度类型」里随时改。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20a7 7 0 0 1 14 0"/></svg><div><b>图标库制作者补全：</b>图标的 ⋯ 菜单里新增「<b>设置制作者</b>」，设置后图标卡片上也会显示制作者标签（和进度条同款样式）；分组筛选弹层里点制作者胶囊即可筛选。</div></div>'+
@@ -6861,7 +6921,7 @@ var NOTICES=[
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 5h5v5M19 5l-8 8M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4"/></svg><div><b>网页链接新打开方式：</b>网页现在会在收纳盒里直接打开（带返回按钮）。如果网页显示空白（该网站禁止内嵌），点顶栏 <b>↗</b> 换新窗口打开，并会提示「已记住：这个网站以后直接在新窗口打开」——之后这个网站都会自动直接跳转，不再白屏。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><div><b>新增整理模式：</b>点文件夹行最前面的 <b>✏️ 小铅笔</b>进入整理。整理状态下：<b>点文件夹名字</b>可以直接重命名；<b>长按拖动</b>可以调整文件夹顺序，也可以拖动下方的工具卡片调整位置；点文件夹上的 <b>×</b> 删除文件夹（里面的工具不会被删）。平时不进整理模式，怎么点都不会误删。</div></div>'}
 ];
-var NOTICE_KEY="hb.notice.v7";
+var NOTICE_KEY="hb.notice.v8";
 function mailUnread(){
   try{ return localStorage.getItem(NOTICE_KEY)!=="read" }catch(e){ return true }
 }
