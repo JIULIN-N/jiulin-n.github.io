@@ -1714,6 +1714,8 @@ function toast(msg,ms){
   el.className="toast";el.textContent=msg;box.appendChild(el);
   setTimeout(function(){el.classList.add("out");setTimeout(function(){el.remove()},220)},ms||2000);
 }
+/* 清掉所有存活的 toast（用于系统分享/下载面板返回后，避免「已导出」提示残留误导） */
+function clearToasts(){var box=$("#toasts");if(box)box.innerHTML=""}
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function bytes(n){if(!n&&n!==0)return "";if(n<1024)return n+" B";if(n<1048576)return (n/1024).toFixed(n<10240?1:0)+" KB";return (n/1048576).toFixed(n<10485760?1:0)+" MB"}
 // 统一色系：全部用靛蓝主色，保持页面干净；数据里自定义的颜色仍可覆盖
@@ -4520,7 +4522,7 @@ function exportWebLinksTxt(){
     });
   });
   downloadText(L.join("\n"),"收纳盒-网页链接.txt");
-  toast("已导出 "+total+" 个网页链接");
+  toast("已生成 "+total+" 个网页链接文件，请在面板中保存");
 }
 /* ============ 多选导出：单独导出 / 打包成迷你收纳盒 ============ */
 function selExportItems(){
@@ -7173,7 +7175,7 @@ if(location.hash.indexOf("#tool=")===0){
 
 // 数据版本变化时提示
 document.addEventListener("visibilitychange",function(){
-  if(!document.hidden)applyTheme();
+  if(!document.hidden){applyTheme();clearToasts()}
 });
 
 /* ============ PWA：manifest / 图标 / SW 全部内联 ============ */
