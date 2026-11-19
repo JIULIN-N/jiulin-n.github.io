@@ -4503,10 +4503,14 @@ function exportWebLinksTxt(){
   L.push("导出时间："+new Date().toLocaleString("zh-CN"));
   L.push("共 "+total+" 个网页链接，按分类排列");
   L.push("");
+  /* 横线长度跟随标题：中文/全角按 2 格、英文数字按 1 格计算显示宽度，动态生成同宽分隔线 */
+  function txtWidth(s){var w=0;for(var i=0;i<s.length;i++){w+=(s.charCodeAt(i)>0x2e80)?2:1}return w}
   order.forEach(function(g){
-    L.push("━━━━━━━━━━━━━━━━━━━━");
-    L.push("【"+g+"】（"+groups[g].length+"）");
-    L.push("━━━━━━━━━━━━━━━━━━━━");
+    var title="【"+g+"】（"+groups[g].length+"）";
+    var bar=new Array(txtWidth(title)+1).join("━");
+    L.push(bar);
+    L.push(title);
+    L.push(bar);
     L.push("");
     groups[g].forEach(function(it){
       /* TXT 是纯文本，无法真正设字号 / 粗体：用「★ + 顶格独占一行 + 网址缩进」把网站名称做成视觉重点 */
