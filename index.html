@@ -1666,7 +1666,7 @@ html[data-theme="dark"] .toast,body.dark .toast{background:color-mix(in srgb,#ee
 "use strict";
 
 /* ---------------------- 诊断：版本号 + 错误显示条 ---------------------- */
-var APP_VER="v3",BUILD_ID="b1116a",VER_LABEL="3.4";/* VER_LABEL：页面对外显示版本号；BUILD_ID 为内部构建标识（版本检测/通知匹配用），保持不变 */
+var APP_VER="v3",BUILD_ID="b1116a",VER_LABEL="3.5";/* VER_LABEL：页面对外显示版本号；BUILD_ID 为内部构建标识（版本检测/通知匹配用），保持不变 */
 window.__hbver=APP_VER;
 function showErrBar(msg){
   try{
@@ -3414,8 +3414,11 @@ function renderPgPage(){
     return;
   }
   list.innerHTML=pgs.map(function(it){return pgItemHTML(it,pgState.view,"pg")}).join("");
-  /* 瀑布流：预览网格 / 三列视图下按卡片真实高度分配行 span，不等高卡片按列错落排列 */
-  if(pgState.view==="grid"||pgState.view==="pills")setTimeout(layoutPgMasonry,30);
+  /* 瀑布流：预览网格 / 三列视图下按卡片真实高度分配行 span，不等高卡片按列错落排列。
+     必须先同步排一次：卡片重建后若等到 30ms 后的定时器才补 span，中间那一帧卡片会塌成
+     默认 4px 行、挤到顶部，再被定时器弹回原位——整理模式拖动松手时表现为「闪一下」。
+     同步调用与 innerHTML 在同一个任务里完成，浏览器一次绘制就是正确布局；定时器只作字体/图片就绪后的校准。 */
+  if(pgState.view==="grid"||pgState.view==="pills"){layoutPgMasonry();setTimeout(layoutPgMasonry,30)}
 }
 /* 星标收藏页：只显示加了星标的进度条，视图 / 搜索 / 多选 / 导出与进度条库一致 */
 var starState={view:"grid",q:""};
@@ -3443,7 +3446,8 @@ function renderStarPage(){
     return;
   }
   list.innerHTML=its.map(function(it){return pgItemHTML(it,starState.view,"star")}).join("");
-  if(starState.view==="grid"||starState.view==="pills")setTimeout(function(){layoutPgMasonry("starList")},30);
+  /* 与进度条库同理：同步排一次消除重建瞬间的塌行闪烁，定时器仅作后续校准 */
+  if(starState.view==="grid"||starState.view==="pills"){layoutPgMasonry("starList");setTimeout(function(){layoutPgMasonry("starList")},30)}
 }
 function openStarPage(){
   if(selMode)exitSelect();
@@ -5511,7 +5515,7 @@ if(t.closest('[data-act="exp-pack-box"]')){doSelExportPack();return}
     case "confirm-folder-rename": confirmRenameFolder($("#sheetFoot").lastElementChild.dataset.foldRenameId); break;
     case "confirm-sel-del": selDeleteConfirm(); break;
     case "show-add": showAddSheet(); break;
-    case "notice-read": try{localStorage.setItem(NOTICE_KEY,"read")}catch(e){} syncMailDot(); closeSheet(); break;
+    case "notice-read": markNoticeRead(); syncMailDot(); closeSheet(); break;
     case "mail-open": showMailBox(); break;
     case "clear-all": showClearAll(); break;
     case "confirm-clear-all": doClearAll(); break;
@@ -5602,13 +5606,37 @@ function extOrgSel(page){
     page==="icon"?"#iconList [data-ic]":page==="box"?"#boxList > [data-bx]":"#none";
 }
 function extOrgAllSel(){return "#pgList > [data-pg],#mineList > [data-id],#iconList [data-ic],#boxList > [data-bx]"}
+/* 进入整理前，把「当前看到的顺序」（含置顶项被提到最前的效果）固化成连续 ord。
+   因为整理模式按纯 ord 排、不掺置顶，若不固化，一点「编辑」置顶项就从顶部跳回它原来的 ord 位置，
+   看起来像「还没拖动位置就变了」。固化后进入整理，顺序与点编辑前完全一致。
+   搜索 / 分组 / 筛选态下 DOM 只是子集，固化会打乱被隐藏项，跳过。 */
+function freezeShownOrderToOrd(page){
+  if(!page||page==="box")return;                      /* 盒中盒按索引存，不用 ord */
+  if(page==="pg"&&(pgState.q||pgState.grp!=="all"||pgState.maker||pgState.scope))return;
+  if(page==="mine"&&minePageState.q)return;
+  if(page==="icon"&&(iconState.grp!=="all"||iconState.maker))return;
+  var sel=extOrgSel(page);
+  var attr=page==="pg"?"data-pg":page==="mine"?"data-id":page==="icon"?"data-ic":null;
+  if(!attr)return;
+  var ids=[].slice.call(document.querySelectorAll(sel)).map(function(n){return n.getAttribute(attr)});
+  var vis=ids.map(function(id){return DB.items.find(function(x){return x.id===id})}).filter(Boolean);
+  if(vis.length<2)return;
+  vis.forEach(function(it,i){it.ord=i});
+  save();
+}
 function extOrgRerender(pg){
   var k=pg||extOrgPage;
+  /* 进出整理 / 保存顺序都会强制重建列表 DOM。重建前存下各独立页滚动位置、重建后还原，
+     否则一旦重建，浏览器就把 .extpage-body 的 scrollTop 归零，表现为「点编辑跳回最前」。
+     和 render() 一致：立即还原一次，瀑布流重排后再补一次。 */
+  var _sc=_snapshotPageScroll();
   _pgRenderSig="";
   if(k==="pg"||k==="star")renderPgPage();
   else if(k==="mine")renderMinePage();
   else if(k==="icon")renderIconPage();
   else if(k==="box")renderBoxPage();
+  _restorePageScroll(_sc);
+  setTimeout(function(){_restorePageScroll(_sc)},40);
 }
 function syncExtOrgBtns(){
   ["pg","mine","icon","box"].forEach(function(k){
@@ -5620,6 +5648,7 @@ function setExtOrg(page){
   if(extSelMode)exitExtSel();
   if(extOrgPage===page){exitExtOrg();toast("已退出整理");return}
   if(extOrgPage)exitExtOrg();
+  freezeShownOrderToOrd(page);   /* 固化当前显示顺序，避免置顶项进入整理时跳位 */
   extOrgPage=page;
   document.body.classList.add("extorg");
   syncExtOrgBtns();
@@ -5648,8 +5677,11 @@ function commitExtOrg(page){
   var ids=[].slice.call(document.querySelectorAll(sel)).map(function(n){return n.getAttribute(attr)});
   var vis=ids.map(function(id){return DB.items.find(function(x){return x.id===id})}).filter(Boolean);
   if(vis.length<2){extOrgRerender();return}
-  var ords=vis.map(itemOrd).sort(function(a,b){return a-b});
-  vis.forEach(function(it,i){it.ord=ords[i]});
+  /* 按拖动后的 DOM 顺序直接生成连续 ord。
+     旧做法是把「原有的 ord 值排序后重新分配」，当多条 ord 相同（例如老数据既没有 ord
+     也没有 addedAt，itemOrd 都返回 0）时，重分配后仍全相同，重绘顺序会退回原样，
+     表现就是「拖动没反应」。这里统一重写成 0,1,2…，彻底摆脱旧值是否有区分度。 */
+  vis.forEach(function(it,i){it.ord=i});
   save();extOrgRerender();toast("顺序已保存");
 }
 var extSelMode=null, extSelSet={}; /* mode: pg / icon / box；盒中盒用索引字符串 */
@@ -5927,14 +5959,24 @@ function confirmRenameFolder(fid){
 var drag=null;
 document.addEventListener("pointerdown",function(e){
   if(!state.folderEdit&&!extOrgPage)return;
-  if(selMode||extSelMode||drag)return;
+  if(selMode||extSelMode)return;
+  /* 左手已经把卡片拎起来后，第二根手指作为「滚动手指」：它上下滑动会手动滚动当前列表，
+     与拖动手指靠 pointerId 完全隔离。于是一边长按拖动、一边滚页面互不干扰，
+     滚动手指碰到别的文件也不会顶开/影响被拖的那张。 */
+  if(drag){
+    if(drag.started&&e.pointerId!==drag.pid&&drag.scrollPid==null){
+      drag.scrollPid=e.pointerId;drag.scrollLastY=e.clientY;
+    }
+    return;
+  }
   if(e.pointerType==="mouse"&&e.button!==0)return;
   var t=e.target;
   if(t.closest(".ordb,.fx,.more,.ckmark,[data-fold-edit],[data-fold-new]"))return;
   if(extOrgPage){
     var xel=t.closest(extOrgSel(extOrgPage));
     if(!xel)return;
-    drag={el:xel,started:false,sx:e.clientX,sy:e.clientY,page:extOrgPage,
+    drag={el:xel,started:false,sx:e.clientX,sy:e.clientY,lastX:e.clientX,lastY:e.clientY,
+      pid:e.pointerId,scrollPid:null,scrollLastY:0,page:extOrgPage,
       timer:setTimeout(function(){beginDrag(e)},320)};
     return;
   }
@@ -5942,7 +5984,8 @@ document.addEventListener("pointerdown",function(e){
   if(!el)return;
   var fid=el.getAttribute?el.getAttribute("data-fold"):null;
   if(el.classList.contains("fchip")&&(!fid||fid==="__none__"))return;
-  drag={el:el,started:false,sx:e.clientX,sy:e.clientY,
+  drag={el:el,started:false,sx:e.clientX,sy:e.clientY,lastX:e.clientX,lastY:e.clientY,
+    pid:e.pointerId,scrollPid:null,scrollLastY:0,
     timer:setTimeout(function(){beginDrag(e)},320)};
 });
 function beginDrag(e){
@@ -5953,17 +5996,20 @@ function beginDrag(e){
   var g=drag.el.cloneNode(true);
   g.classList.add("drag-ghost");
   g.style.width=r.width+"px";
+  /* 必须一创建就定位到手指按住的位置：drag-ghost 是 position:fixed，若不立即给 left/top，
+     它会停在 body 末尾的默认静态位置（屏幕底部）。触屏上长按 320ms 触发后、手指尚未移动的
+     那一瞬间，跟随手指的卡片副本出现在底部、原卡片又淡成 .35，看起来就是「要拖的图消失了」。 */
+  g.style.left=(e.clientX-drag.ox)+"px";
+  g.style.top=(e.clientY-drag.oy)+"px";
   document.body.appendChild(g);
   drag.ghost=g;
   drag.el.classList.add("dragging");
   try{navigator.vibrate&&navigator.vibrate(10)}catch(_){}
 }
-document.addEventListener("pointermove",function(e){
+/* 把手指位置下的卡片挪到被拖卡片处：pointermove 与边缘自动滚动共用同一套判定 */
+function dragReorderAt(x,y){
   if(!drag||!drag.started)return;
-  e.preventDefault();
-  drag.ghost.style.left=(e.clientX-drag.ox)+"px";
-  drag.ghost.style.top=(e.clientY-drag.oy)+"px";
-  var under=document.elementFromPoint(e.clientX,e.clientY);
+  var under=document.elementFromPoint(x,y);
   var tgt=under&&under.closest?under.closest('.card,.pill,.fchip[data-fold],.subf[data-fold],'+extOrgAllSel()):null;
   if(!tgt||tgt===drag.el)return;
   /* 独立页整理：同一容器内互换位置；网格同行用左右、跨行用上下判定插在前 / 后 */
@@ -5971,7 +6017,7 @@ document.addEventListener("pointermove",function(e){
     if(tgt.parentNode!==drag.el.parentNode)return;
     var xr=tgt.getBoundingClientRect(),er=drag.el.getBoundingClientRect();
     var sameRow=Math.abs((xr.top+xr.height/2)-(er.top+er.height/2))<Math.min(xr.height,er.height)*0.6;
-    var xbefore=sameRow?(e.clientX<xr.left+xr.width/2):(e.clientY<xr.top+xr.height/2);
+    var xbefore=sameRow?(x<xr.left+xr.width/2):(y<xr.top+xr.height/2);
     tgt.parentNode.insertBefore(drag.el,xbefore?tgt:tgt.nextSibling);
     return;
   }
@@ -5983,14 +6029,79 @@ document.addEventListener("pointermove",function(e){
   if((drag.el.classList.contains("card")||drag.el.classList.contains("pill"))&&tgt.parentNode!==drag.el.parentNode)return;
   var r=tgt.getBoundingClientRect();
   var before=drag.el.classList.contains("fchip")
-    ?(e.clientX<r.left+r.width/2)
-    :(e.clientY<r.top+r.height/2);
+    ?(x<r.left+r.width/2)
+    :(y<r.top+r.height/2);
   tgt.parentNode.insertBefore(drag.el,before?tgt:tgt.nextSibling);
+}
+/* 拖动时的滚动容器：独立页用自己的 .extpage-body，主列表用文档滚动 */
+function dragScrollEl(){
+  if(drag&&drag.page){
+    var id=drag.page==="pg"?"pgPage":drag.page==="icon"?"iconPage":drag.page==="mine"?"minePage":drag.page==="box"?"boxPage":null;
+    var sc=id?document.querySelector("#"+id+" .extpage-body"):null;
+    if(sc)return sc;
+  }
+  return document.scrollingElement||document.documentElement;
+}
+/*    手指停在容器上下边缘时持续自动滚动：一张卡片能从末尾一次拖到最前，不用放下再重新长按。
+   注意：滚动期间不再实时重排其他卡片——只让浮图跟随手指、列表整体平滑滚动，其他卡片保持原位，
+   避免「滚动时被拖图一路顶开别的卡片」。真正落位放到 pointerup（endDrag）里一次性完成。
+   若第二根手指正在手动滚动（scrollPid），则停掉边缘自动滚动，交给那根手指控制。 */
+var dragScrollRAF=null;
+function dragEdgeScrollTick(){
+  if(!drag||!drag.started){dragScrollRAF=null;return}
+  if(drag.scrollPid!=null){dragScrollRAF=null;return}
+  var sc=dragScrollEl();if(!sc){dragScrollRAF=null;return}
+  var r=sc.getBoundingClientRect(),y=drag.lastY;
+  var EDGE=76,MAX=15,dy=0;
+  if(y<r.top+EDGE)dy=-MAX*Math.max(.35,(EDGE-(y-r.top))/EDGE);
+  else if(y>r.bottom-EDGE)dy=MAX*Math.max(.35,(EDGE-(r.bottom-y))/EDGE);
+  if(!dy){dragScrollRAF=null;return}
+  sc.scrollTop+=dy;
+  dragScrollRAF=requestAnimationFrame(dragEdgeScrollTick);
+}
+document.addEventListener("pointermove",function(e){
+  if(!drag||!drag.started)return;
+  /* 第二根手指（滚动手指）上下滑动：直接滚动列表容器，完全不碰浮图 / 落点，
+     所以滚动时碰到别的文件也不会影响被拖的那张。用 delta 累加，支持来回滚。 */
+  if(drag.scrollPid!=null&&e.pointerId===drag.scrollPid){
+    e.preventDefault();
+    var scS=dragScrollEl();
+    if(scS)scS.scrollTop-=(e.clientY-drag.scrollLastY);
+    drag.scrollLastY=e.clientY;
+    return;
+  }
+  /* 只认拖动手指本身：其它手指的移动一律忽略，避免多指抢走浮图位置 */
+  if(e.pointerId!==drag.pid)return;
+  e.preventDefault();
+  drag.lastX=e.clientX;drag.lastY=e.clientY;
+  drag.ghost.style.left=(e.clientX-drag.ox)+"px";
+  drag.ghost.style.top=(e.clientY-drag.oy)+"px";
+  /* 拖动手指移动时实时把半透明原卡片挪到落点，给出「将插到哪」的预览——
+     这正是拖动时看位置的依据。只有「滚动」（边缘自动滚动 / 第二指滚页面）才不重排，
+     避免滚动时浮图一路顶开别的卡片；那两条路径都不调本函数。 */
+  dragReorderAt(e.clientX,e.clientY);
+  /* 靠近上下边缘即启动自动滚动；手指一离开边缘，tick 会自行停止 */
+  if(drag.scrollPid==null){
+    var sc=dragScrollEl(),r=sc?sc.getBoundingClientRect():null;
+    if(r&&!dragScrollRAF&&(e.clientY<r.top+76||e.clientY>r.bottom-76))dragScrollRAF=requestAnimationFrame(dragEdgeScrollTick);
+  }
 },{passive:false});
-function endDrag(){
+function endDrag(e){
   if(!drag)return;
+  /* 多指：抬起的若是滚动手指，只结束滚动、不落位、不撤销拖动 */
+  if(e&&e.pointerId!=null&&drag.scrollPid!=null&&e.pointerId===drag.scrollPid){
+    drag.scrollPid=null;
+    return;
+  }
+  /* 抬起的既不是拖动手指也不是已知滚动手指，忽略（防止其它触点误触发落位） */
+  if(e&&e.pointerId!=null&&e.pointerId!==drag.pid)return;
   clearTimeout(drag.timer);
+  if(dragScrollRAF){cancelAnimationFrame(dragScrollRAF);dragScrollRAF=null}
   if(drag.started){
+    /* 拖动时已实时把半透明原卡片挪到落点（见 pointermove）；松手这里再兜底排一次，
+       防止极端情况（抬起前最后一帧没触发 move）落点不到位。此时 elementFromPoint 命中的
+       多半就是 drag.el 自己，dragReorderAt 会直接 return，不会重复移动。 */
+    if(drag.lastX!=null&&drag.lastY!=null)dragReorderAt(drag.lastX,drag.lastY);
     if(drag.ghost)drag.ghost.remove();
     drag.el.classList.remove("dragging");
     commitDrag(drag.el);
@@ -6017,9 +6128,8 @@ function commitDrag(el){
     var nodes=[].slice.call(document.querySelectorAll('#appList [data-id].card,#appList [data-id].pill'));
     var vis=nodes.map(function(n){return DB.items.find(function(x){return x.id===n.getAttribute("data-id")})}).filter(Boolean);
     if(vis.length<2)return render();
-    var ords=vis.map(function(it){return it.ord!=null?it.ord:(it.addedAt||0)})
-      .sort(function(a,b){return a-b});
-    vis.forEach(function(it,i){it.ord=ords[i]});
+    /* 按拖动后的 DOM 顺序直接生成连续 ord；旧做法重分配旧 ord，值全相同时会退回原序 */
+    vis.forEach(function(it,i){it.ord=i});
     save();render();
   }
 }
@@ -6905,6 +7015,9 @@ setTimeout(function(){
 },3000);
 /* 站点通知：最新一条弹一次，所有版本更新通知存档在顶栏 ✉ 信件图标里随时翻看 */
 var NOTICES=[
+ {id:"3.5",title:"3.5版本更新通知",date:"11月21日",body:
+  '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h13M4 12h16M4 17h10"/><path d="m17 5 3 2-3 2"/></svg><div><b>拖动排序时拖到边缘会自动滚动：</b>想<b>调整文件排列顺序</b>时，进整理模式长按一张卡片拖动它。以前列表很长时，想把最后一张挪到最前，得拖一段松手、滚动页面、再重新长按，反复好几次。现在<b>把卡片拖到屏幕最上方或最下方边缘，列表就会自动滚动</b>，手指不用松开，一口气就能把卡片拖到前面任何位置。</div></div>'+
+  '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v9M8 12l3-3M8 12 5 9M16 21v-9M16 12l3 3M16 12l-3 3"/></svg><div><b>拖动排序时可以一边拖一边滚：</b>还是在<b>长按拖动卡片调整顺序</b>的时候，现在支持两根手指配合——<b>左手按住卡片不放、右手在屏幕上滑动滚动列表</b>，找目标位置。两只手互不干扰，右手滚动不会碰到、顶开别的文件，也不会抢走左手正在拖的那张卡片。</div></div>'},
  {id:"3.4",title:"3.4版本更新通知",date:"11月19日",body:
   '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><div><b> ⋯ 按钮不再误打开网页：</b>列表视图下，部分胶囊点右侧「<b>⋯</b>」会连条目一起打开（尤其是网页链接），现在已经修好——点 ⋯ 只会弹出菜单，不会误跳转。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><div><b>多选不再挡住最后一排：</b>多选时底部弹出的操作条会盖住最下面的胶囊，现在列表底部会自动留出足够空间，最下面一排也能正常点选。</div></div>'+
@@ -6950,10 +7063,11 @@ var NOTICES=[
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 5h5v5M19 5l-8 8M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4"/></svg><div><b>网页链接新打开方式：</b>网页现在会在收纳盒里直接打开（带返回按钮）。如果网页显示空白（该网站禁止内嵌），点顶栏 <b>↗</b> 换新窗口打开，并会提示「已记住：这个网站以后直接在新窗口打开」——之后这个网站都会自动直接跳转，不再白屏。</div></div>'+
   '<div class="note" style="margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><div><b>新增整理模式：</b>点文件夹行最前面的 <b>✏️ 小铅笔</b>进入整理。整理状态下：<b>点文件夹名字</b>可以直接重命名；<b>长按拖动</b>可以调整文件夹顺序，也可以拖动下方的工具卡片调整位置；点文件夹上的 <b>×</b> 删除文件夹（里面的工具不会被删）。平时不进整理模式，怎么点都不会误删。</div></div>'}
 ];
-var NOTICE_KEY="hb.notice.v8";
+var NOTICE_KEY="hb.notice.v9";
 function mailUnread(){
   try{ return localStorage.getItem(NOTICE_KEY)!=="read" }catch(e){ return true }
 }
+function markNoticeRead(){ try{ localStorage.setItem(NOTICE_KEY,"read") }catch(e){} }
 function syncMailDot(){}
 /* ============ 设置面板：信箱 / 说明 / 入口开关 ============ */
 /* ============ 查重：重复网址 / 内容完全相同的文件（含盒中盒里的） ============ */
@@ -7145,6 +7259,8 @@ function showMailBox(){
 }
 function showNoticeDetail(id){
   var n=NOTICES.find(function(x){return x.id===id});if(!n)return;
+  /* 点开当前版本的通知即视为已读，返回信箱后「新」标记消失 */
+  if(String(n.id).toLowerCase()===String(VER_LABEL).toLowerCase()){ markNoticeRead(); syncMailDot(); }
   openSheet(n.title,n.body,
     '<button class="btn-ghost" style="width:auto;padding:0 14px" data-act="mail-open">返回信箱</button>'+
     '<button class="btn-primary" style="width:auto;padding:0 16px" data-act="sheet-cancel">知道了</button>');
