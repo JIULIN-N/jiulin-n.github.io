@@ -6,13 +6,24 @@
 const FONT_CACHE = 'reeden-fonts-v1';
 const FONT_RE = /\.(woff2?|ttf|otf)$/i;
 // install 阶段先预缓存方正屏显雅宋（0.7MB，页面启动即用）：首次打开就落盘，
-// 之后主屏幕/离线打开直接命中，不再等网络。汇文 3.4MB 体积大，等真正选中时由
-// 页面主动写入缓存（见 registerFontOnce），避免不选汇文的用户白下 3.4MB。
+// 之后主屏幕/离线打开直接命中，不再等网络。汇文 3.4MB 体积大，放到 activate 之后再
+// 后台预缓存（见下）：先接管页面保证首屏流畅，再并行下载字体，用户点海报时通常已就绪。
 self.addEventListener('install', e => {
   self.skipWaiting();
   e.waitUntil(caches.open(FONT_CACHE).then(c => c.addAll(['fangzheng.woff2']).catch(() => {})));
 });
-self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+self.addEventListener('activate', e => e.waitUntil((async () => {
+  await self.clients.claim();   // 先接管页面，下面的字体下载不阻塞渲染
+  // 后台预缓存汇文（3.4MB）：主屏幕是独立存储，必然要重新下一次。
+  // 在这里就启动下载（与首屏渲染并行），等用户点海报模板时字体多半已落盘，
+  // 页面 fetch 直接命中本地缓存，不再出现「图生成完等半天字体才出来」。
+  try {
+    const c = await caches.open(FONT_CACHE);
+    if (!(await c.match('huiwen.woff2'))) {
+      await c.add(new Request('huiwen.woff2', { cache: 'reload' })).catch(() => {});
+    }
+  } catch (err) {}
+})()));
 const HTML_CACHE = 'reeden-html-v1';
 self.addEventListener('fetch', e => {
   const req = e.request;
