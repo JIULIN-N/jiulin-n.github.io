@@ -706,6 +706,8 @@ function fontIsReady(family){const f=fontFaceObj[family];return !!f&&f.status===
 function onFontReady(family){
   if(usedFontFamilies().indexOf(family)<0)return;   // 只是后台预热，不打扰用户
   clearScreenCache();                                // 旧截图是回退字体，必须作废
+  // 磁盘缓存里可能存着字体没就绪时截的回退图，一并清掉（随后 warmScreenBg 会用正确字体重写）
+  if(canPersist())caches.open(SHOTS_CACHE).then(c=>c.keys().then(ks=>ks.forEach(k=>c.delete(k).catch(()=>{}))).catch(()=>{})).catch(()=>{});
   if(typeof warmScreenBg==='function')warmScreenBg();
   if(S.active>=0){
     renderAll();onPosterOptionChange(false);
@@ -1443,9 +1445,9 @@ function onFontChange(){
   // 字体影响阅读页(DOM)与海报(canvas)：重渲三屏 + 刷新海报预览/缓存
   if(S.active>=0){renderAll();onPosterOptionChange(false)}
 }
-$('#cnFont').addEventListener('change',e=>{S.cnFont=e.target.value;S.fontBody=e.target.value;onFontChange()});
-$('#fontTheme').addEventListener('change',e=>{S.fontTheme=e.target.value;onFontChange()});
-$('#fontAuthor').addEventListener('change',e=>{S.fontAuthor=e.target.value;onFontChange()});
+$('#cnFont').addEventListener('change',e=>{S.cnFont=e.target.value;S.fontBody=e.target.value;onFontChange();saveFontSel()});
+$('#fontTheme').addEventListener('change',e=>{S.fontTheme=e.target.value;onFontChange();saveFontSel()});
+$('#fontAuthor').addEventListener('change',e=>{S.fontAuthor=e.target.value;onFontChange();saveFontSel()});
 $('#shelfSeg').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   const v=b.dataset.v;
@@ -1538,16 +1540,85 @@ async function canvasOf(el,scale){
 let screenCache=null;        // 高清截图（导出原图/缩略图用，scale=SHOT_SCALE）
 let screenCacheFast=null;    // 快速截图（打开预览时先出图用，scale=SHOT_SCALE_FAST）
 function clearScreenCache(){screenCache=null;screenCacheFast=null}
+// ---------- 截图持久缓存（磁盘） ----------
+// iOS「添加到主屏幕」内存紧张，页面随时可能被系统杀掉重载：内存里的截图缓存会全部丢失，
+// 用户就要面对「每个模板打开都重新截图」。这里把快速截图（内存友好的小尺寸）写入
+// Cache Storage，下次冷启动直接恢复，模板打开回到秒开；高清原图仍按需重截（导出时才用）。
+const SHOTS_CACHE='reeden-shots-v1';
+function shotsStateHash(){
+  // key 覆盖所有影响三屏画面的状态：主题/模式/三处字体/书架视图/阅读排版微调/标题作者/启动页覆盖。
+  // 任何一项变化 → key 变化 → 旧缓存自动淘汰，绝不会把旧字体截图误当成新状态的。
+  const sig=[S.active>=0?S.themes[S.active].fileName:'',S.mode,S.fontTheme,S.fontAuthor,
+    S.fontBody||S.cnFont,S.shelfView,S.listCardBg,S.readerOffset,S.titleGap,S.headH,S.footH,
+    S.splashOverride||'',($('#fTitle')?.value||''),($('#fAuthor')?.value||'')].join('|');
+  let h=5381;for(let i=0;i<sig.length;i++)h=((h<<5)+h+sig.charCodeAt(i))>>>0;
+  return h.toString(36);
+}
+function shotsBase(){return 'shots/'+shotsStateHash()}
+function canPersist(){return /^(https?:)$/.test(location.protocol)&&'caches' in window}
+async function persistShots(cs){
+  if(!canPersist()||!cs||!cs.length)return;
+  try{
+    const c=await caches.open(SHOTS_CACHE),base=shotsBase();
+    for(let i=0;i<cs.length;i++){
+      const b=await toBlob(cs[i]);
+      if(b)await c.put(base+'/'+i,new Response(b,{headers:{'content-type':'image/png'}}));
+    }
+    // 只保留当前状态的缓存：字体/模式等变化后旧 key 会被淘汰，避免磁盘堆积
+    const keys=await c.keys();
+    keys.forEach(k=>{if(k.url.indexOf(base)<0)c.delete(k).catch(()=>{})});
+  }catch(e){}
+}
+async function restoreShots(){
+  if(!canPersist())return null;
+  try{
+    const c=await caches.open(SHOTS_CACHE),base=shotsBase(),out=[];
+    for(let i=0;i<3;i++){
+      const r=await c.match(base+'/'+i);
+      if(!r)break;
+      const bmp=await createImageBitmap(await r.blob());
+      const cv=document.createElement('canvas');cv.width=bmp.width;cv.height=bmp.height;
+      cv.getContext('2d').drawImage(bmp,0,0);
+      if(bmp.close)bmp.close();
+      out.push(cv);
+    }
+    return out.length>=2?out:null;   // 至少书架+阅读两屏才算有效缓存
+  }catch(e){return null}
+}
+// 等当前选中字体真正就绪（最多 maxWait 毫秒）：海报叠加文字用 canvas 绘制，
+// 字体没解码完会静默回退成默认字体。
+async function ensureFontsReady(maxWait){
+  const used=usedFontFamilies();
+  if(used.every(fontIsReady))return;
+  const waits=used.map(f=>fontRegistered[f]).filter(Boolean);
+  if(!waits.length)return;
+  await Promise.race([Promise.all(waits.map(p=>p.catch(()=>{}))),new Promise(r=>setTimeout(r,maxWait||1500))]);
+}
 function toBlob(c){return new Promise((res,rej)=>{try{c.toBlob(b=>b?res(b):rej(Error('toBlob 失败')),'image/png')}catch(e){rej(e)}})}
 // 导入/切换后后台预截图：html2canvas 截三屏在手机上要 1~2 秒，是「点开模板要加载一会」的主因。
 // 在浏览器空闲时提前截图并缓存，用户点模板/导图时直接命中，秒开。清缓存后会自动重新预热。
+// 主屏幕场景优先从磁盘恢复上次会话的截图（页面被系统杀掉重载后内存缓存已丢），
+// 命中则完全跳过截图；未命中才真正截图并写盘，供下次冷启动秒开。
 let warmScreenTimer=null;
 function warmScreenBg(){
   clearTimeout(warmScreenTimer);
-  warmScreenTimer=setTimeout(()=>{
-    if(S.active<0||screenCache)return;
-    const activeAt=S.active, idle=window.requestIdleCallback||(cb=>setTimeout(cb,120));
-    idle(()=>{if(S.active===activeAt&&!screenCache)screenCanvases().catch(()=>{})});
+  warmScreenTimer=setTimeout(async()=>{
+    if(S.active<0||screenCacheFast||screenCache)return;
+    const activeAt=S.active;
+    try{
+      const restored=await restoreShots();
+      if(S.active!==activeAt)return;
+      if(restored){screenCacheFast=restored;return}
+    }catch(e){}
+    const idle=window.requestIdleCallback||(cb=>setTimeout(cb,120));
+    idle(async()=>{
+      if(S.active!==activeAt||screenCacheFast||screenCache)return;
+      try{
+        // 预热路径多等字体一会（10s）：避免把「回退字体」的截图写进磁盘缓存
+        const cs=await screenCanvases(SHOT_SCALE_FAST,10000);
+        persistShots(cs);
+      }catch(e){}
+    });
   },220);
 }
 
@@ -3066,29 +3137,24 @@ async function screens(){return [...document.querySelectorAll('#stage .screen')]
 // 截图一次后缓存；大预览/导出/缩略图共用，杜绝两次截图产生的差异。
 // 桌面 scale=6 高清、移动端 scale=4（手机屏幕无需更高，且 html2canvas 高 scale 很慢）。
 let fontsWereReadyAtShot=true;   // 最近一次截图时字体是否已全部解码
-async function screenCanvases(scale){
+async function screenCanvases(scale,maxWait){
   const wantHD=!scale||scale===SHOT_SCALE;
   if(wantHD&&screenCache)return screenCache;
   if(!wantHD&&screenCacheFast)return screenCacheFast;
   // 关键：截图前只等**当前选中的**字体（后台预热的其它字体不拖后腿）。
   // 等的是字体加载 Promise 本身（FontFace.load 的真实完成），比查 document.fonts 状态可靠——
   // 样式声明的同名 face 可能长期 unloaded，会让判断永远「未就绪」而反复重截。
-  // 网页部署版字体要走网络（GitHub Pages 上汇文 3.4MB 可能几十秒），无限等待会让「生成中」卡住，
-  // 因此最多等 3 秒：字体已缓存（绝大多数情况）直接出正确图；还没下完就先用回退字体出图，
-  // 字体到货后 onFontReady 自动清缓存重修（用户无需操作）。
+  // 用户打开预览最多等 3 秒（maxWait 缺省）；后台预热传 10 秒——宁可多等也不把
+  // 「回退字体」的截图写进磁盘缓存，否则冷启动恢复出来的就是错字体。
   const used=usedFontFamilies();
   // 选中的是汇文但还没发起加载（例如预热还没触发）：这里补一次，避免一直用回退字体
   if(used.indexOf('HuiwenMincho')>=0&&!fontRegistered.HuiwenMincho)ensureHuiwenFont().catch(()=>{});
-  const waits=used.map(f=>fontRegistered[f]).filter(Boolean);
-  if(waits.length){
+  if(used.some(f=>fontRegistered[f])){
     const tip='字体首次加载中（约3.4MB，仅此一次）…';
     document.querySelectorAll('.pv-loading').forEach(el=>{el.textContent=tip});
     const pn=document.getElementById('pvName');
     if(pn&&/正在截图|生成中/.test(pn.textContent))pn.textContent=tip;
-    await Promise.race([
-      Promise.all(waits.map(p=>p.catch(()=>{}))),
-      new Promise(r=>setTimeout(r,3000))
-    ]);
+    await ensureFontsReady(maxWait||3000);
   }
   fontsWereReadyAtShot=used.every(fontIsReady);
   const ss=await screens(),cs=[];
@@ -3170,6 +3236,7 @@ const PV_PREVIEW_W=1600;
 function genPvImage(idx,retries){
   const PV=window.PV;if(!PV||pvUrls[idx]!==undefined)return;
   const p=PV.pages[idx],seq=pvSeq;
+  if(!p||(!p.gen&&!p.canvases))return;         // 「正在截图…」占位页：无内容，等真实页接管
   retries=retries||0;
   pvUrls[idx]=null;                            // 占位，防重复生成
   setTimeout(()=>{
@@ -3384,18 +3451,29 @@ function currentTplId(){return $('#tplSeg .tpl.on')?.dataset.t||'classic'}
 async function openPreviewAt(tplId){
   if(S.active<0){alert('请先导入 .red 主题');return}
   const idx=Math.max(0,TPLS.findIndex(m=>m.id===tplId));
-  // 命中缓存：秒开，无任何额外开销
-  if(screenCache){showPages(posterPages(screenCache,S.themes[S.active]),idx);return}
-  // 无缓存（刚清缓存/字体刚切换/预热未完成）：先弹窗给「生成中」反馈再截图。
+  // 命中缓存：秒开。海报的文字是 canvas 叠加的，字体还没解码会回退成默认字体，
+  // 所以先等字体（已就绪时零开销）再显示。
+  if(screenCache){
+    await ensureFontsReady(1500);
+    if(screenCache){showPages(posterPages(screenCache,S.themes[S.active]),idx);return}
+  }
+  // 无缓存（页面被系统重载/刚清缓存）：先弹窗给「生成中」反馈再截图。
   // 移动端 html2canvas 三屏要 1~2 秒，之前是先截图后弹窗——期间界面假死，
   // 用户重复点击会叠加多次截图任务，内存峰值翻倍，是移动端崩溃跳代码页的诱因之一。
   // 同时清掉上一批旧图：切字体后旧图是回退字体，留着会让人误以为「字体没生效」。
   const oldBox=$('#modalImgs');if(oldBox)oldBox.innerHTML='';
   showPages([{name:'正在截图…'}],0);
   try{
-    // 先用快速倍率截图 → 3~8 秒出预览（手机三屏高清要 10~18 秒，等不起）；
-    // 同时后台补高清截图，供「下载原图」与下次打开使用，导出清晰度不受影响。
-    const fast=screenCacheFast||await screenCanvases(SHOT_SCALE_FAST);
+    // 优先从磁盘恢复上次会话的截图（主屏幕页面被系统重载后内存缓存已丢）：
+    // 恢复 0.1~0.3 秒，比重新截图快一个数量级；恢复失败才真正截图。
+    let fast=screenCacheFast;
+    if(!fast){
+      const restored=await restoreShots();
+      if(restored)screenCacheFast=restored;
+      fast=screenCacheFast;
+    }
+    if(!fast)fast=await screenCanvases(SHOT_SCALE_FAST);
+    await ensureFontsReady(1500);   // 磁盘恢复的截图不依赖字体，但海报叠加文字需要（已就绪时零开销）
     showPages(posterPages(fast,S.themes[S.active]),idx);
     if(!screenCache)screenCanvases().catch(()=>{});
   }catch(err){closeModal();alert('预览失败：'+err.message)}
@@ -3562,6 +3640,29 @@ $('#tplPagePrev').addEventListener('click',()=>{tplPage=(tplPage-1+tplPageCount(
 $('#tplPageNext').addEventListener('click',()=>{tplPage=(tplPage+1)%tplPageCount();renderTplPage()});
 
 initTplCards();
+
+/* ---------- 字体选择持久化 ----------
+   iOS「添加到主屏幕」页面被系统重载/下次冷启动后，不持久化的设置会全部回到默认——
+   用户上次明明选了汇文，重新打开却变回默认字体，看起来就是「字体不生效」。
+   这里把三处字体选择存进 localStorage（几十字节），启动时自动恢复并预加载字体。 */
+const FONT_STORE='reeden-fonts-v1';
+function saveFontSel(){
+  try{localStorage.setItem(FONT_STORE,JSON.stringify({t:S.fontTheme,a:S.fontAuthor,b:S.fontBody||S.cnFont}))}catch(e){}
+}
+function restoreFontSel(){
+  try{
+    const d=JSON.parse(localStorage.getItem(FONT_STORE)||'null');
+    if(!d)return;
+    // 通过 select 赋值并读回校验，避免恢复出下拉框里不存在的旧值
+    const apply=(id,cur)=>{const el=document.getElementById(id);if(!el||!cur)return;el.value=cur;return el.value};
+    const t=apply('fontTheme',d.t),a=apply('fontAuthor',d.a),b=apply('cnFont',d.b);
+    if(t)S.fontTheme=t;
+    if(a)S.fontAuthor=a;
+    if(b){S.fontBody=b;S.cnFont=b}
+  }catch(e){}
+}
+restoreFontSel();
+if(S.fontTheme==='huiwen'||S.fontAuthor==='huiwen'||S.fontBody==='huiwen'||S.cnFont==='huiwen')ensureHuiwenFont().catch(()=>{});
 
 </script>
 <script>/*!
