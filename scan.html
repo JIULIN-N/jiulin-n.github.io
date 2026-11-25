@@ -706,8 +706,6 @@ function fontIsReady(family){const f=fontFaceObj[family];return !!f&&f.status===
 function onFontReady(family){
   if(usedFontFamilies().indexOf(family)<0)return;   // 只是后台预热，不打扰用户
   clearScreenCache();                                // 旧截图是回退字体，必须作废
-  // 磁盘缓存里可能存着字体没就绪时截的回退图，一并清掉（随后 warmScreenBg 会用正确字体重写）
-  if(canPersist())caches.open(SHOTS_CACHE).then(c=>c.keys().then(ks=>ks.forEach(k=>c.delete(k).catch(()=>{}))).catch(()=>{})).catch(()=>{});
   if(typeof warmScreenBg==='function')warmScreenBg();
   if(S.active>=0){
     renderAll();onPosterOptionChange(false);
@@ -1539,52 +1537,8 @@ async function canvasOf(el,scale){
 // 从根本上保证「导出的样子 = 大预览看到的」。任何影响画面的操作（导入、刷新、改标题/作者、切模式）都会清缓存。
 let screenCache=null;        // 高清截图（导出原图/缩略图用，scale=SHOT_SCALE）
 let screenCacheFast=null;    // 快速截图（打开预览时先出图用，scale=SHOT_SCALE_FAST）
-function clearScreenCache(){screenCache=null;screenCacheFast=null}
-// ---------- 截图持久缓存（磁盘） ----------
-// iOS「添加到主屏幕」内存紧张，页面随时可能被系统杀掉重载：内存里的截图缓存会全部丢失，
-// 用户就要面对「每个模板打开都重新截图」。这里把快速截图（内存友好的小尺寸）写入
-// Cache Storage，下次冷启动直接恢复，模板打开回到秒开；高清原图仍按需重截（导出时才用）。
-const SHOTS_CACHE='reeden-shots-v1';
-function shotsStateHash(){
-  // key 覆盖所有影响三屏画面的状态：主题/模式/三处字体/书架视图/阅读排版微调/标题作者/启动页覆盖。
-  // 任何一项变化 → key 变化 → 旧缓存自动淘汰，绝不会把旧字体截图误当成新状态的。
-  const sig=[S.active>=0?S.themes[S.active].fileName:'',S.mode,S.fontTheme,S.fontAuthor,
-    S.fontBody||S.cnFont,S.shelfView,S.listCardBg,S.readerOffset,S.titleGap,S.headH,S.footH,
-    S.splashOverride||'',($('#fTitle')?.value||''),($('#fAuthor')?.value||'')].join('|');
-  let h=5381;for(let i=0;i<sig.length;i++)h=((h<<5)+h+sig.charCodeAt(i))>>>0;
-  return h.toString(36);
-}
-function shotsBase(){return 'shots/'+shotsStateHash()}
-function canPersist(){return /^(https?:)$/.test(location.protocol)&&'caches' in window}
-async function persistShots(cs){
-  if(!canPersist()||!cs||!cs.length)return;
-  try{
-    const c=await caches.open(SHOTS_CACHE),base=shotsBase();
-    for(let i=0;i<cs.length;i++){
-      const b=await toBlob(cs[i]);
-      if(b)await c.put(base+'/'+i,new Response(b,{headers:{'content-type':'image/png'}}));
-    }
-    // 只保留当前状态的缓存：字体/模式等变化后旧 key 会被淘汰，避免磁盘堆积
-    const keys=await c.keys();
-    keys.forEach(k=>{if(k.url.indexOf(base)<0)c.delete(k).catch(()=>{})});
-  }catch(e){}
-}
-async function restoreShots(){
-  if(!canPersist())return null;
-  try{
-    const c=await caches.open(SHOTS_CACHE),base=shotsBase(),out=[];
-    for(let i=0;i<3;i++){
-      const r=await c.match(base+'/'+i);
-      if(!r)break;
-      const bmp=await createImageBitmap(await r.blob());
-      const cv=document.createElement('canvas');cv.width=bmp.width;cv.height=bmp.height;
-      cv.getContext('2d').drawImage(bmp,0,0);
-      if(bmp.close)bmp.close();
-      out.push(cv);
-    }
-    return out.length>=2?out:null;   // 至少书架+阅读两屏才算有效缓存
-  }catch(e){return null}
-}
+let shotGen=0;               // 截图代次：每次清缓存/重新导入都 +1，旧任务发现代次变了立刻中止
+function clearScreenCache(){shotGen++;screenCache=null;screenCacheFast=null}
 // 等当前选中字体真正就绪（最多 maxWait 毫秒）：海报叠加文字用 canvas 绘制，
 // 字体没解码完会静默回退成默认字体。
 async function ensureFontsReady(maxWait){
@@ -1597,29 +1551,23 @@ async function ensureFontsReady(maxWait){
 function toBlob(c){return new Promise((res,rej)=>{try{c.toBlob(b=>b?res(b):rej(Error('toBlob 失败')),'image/png')}catch(e){rej(e)}})}
 // 导入/切换后后台预截图：html2canvas 截三屏在手机上要 1~2 秒，是「点开模板要加载一会」的主因。
 // 在浏览器空闲时提前截图并缓存，用户点模板/导图时直接命中，秒开。清缓存后会自动重新预热。
-// 主屏幕场景优先从磁盘恢复上次会话的截图（页面被系统杀掉重载后内存缓存已丢），
-// 命中则完全跳过截图；未命中才真正截图并写盘，供下次冷启动秒开。
+// 只存内存，不写磁盘：iOS 上把三张大图编码成 PNG 再写 Cache Storage 会造成明显内存峰值，
+// 是「一导入就闪退」的诱因，稳定优先。
 let warmScreenTimer=null;
 function warmScreenBg(){
   clearTimeout(warmScreenTimer);
-  warmScreenTimer=setTimeout(async()=>{
+  // 手机上多等一会：连续导入主题时避开内存峰值叠加。
+  // 注意 IS_MOBILE 在本段之后才声明，不能在顶层提前求值（否则整个脚本 TDZ 报错白屏）。
+  const delay=(typeof IS_MOBILE!=='undefined'&&IS_MOBILE)?1200:220;
+  warmScreenTimer=setTimeout(()=>{
     if(S.active<0||screenCacheFast||screenCache)return;
     const activeAt=S.active;
-    try{
-      const restored=await restoreShots();
-      if(S.active!==activeAt)return;
-      if(restored){screenCacheFast=restored;return}
-    }catch(e){}
     const idle=window.requestIdleCallback||(cb=>setTimeout(cb,120));
     idle(async()=>{
       if(S.active!==activeAt||screenCacheFast||screenCache)return;
-      try{
-        // 预热路径多等字体一会（10s）：避免把「回退字体」的截图写进磁盘缓存
-        const cs=await screenCanvases(SHOT_SCALE_FAST,10000);
-        persistShots(cs);
-      }catch(e){}
+      try{await screenCanvases(SHOT_SCALE_FAST,10000)}catch(e){}
     });
-  },220);
+  },delay);
 }
 
 /* ---------- 海报导出：取色 + 4 套模板 ---------- */
@@ -3157,8 +3105,25 @@ async function screenCanvases(scale,maxWait){
     await ensureFontsReady(maxWait||3000);
   }
   fontsWereReadyAtShot=used.every(fontIsReady);
+  // 等三屏里的图片加载完（最多 3s）：预热截图跑得比封面解码早的话，
+  // 会把还没加载出来的灰色占位块截进缓存，模板预览就一直是灰块。
+  const pending=[...document.querySelectorAll('#stage img')].filter(im=>!im.complete);
+  if(pending.length){
+    await Promise.race([
+      Promise.all(pending.map(im=>new Promise(r=>{im.onload=im.onerror=r}))),
+      new Promise(r=>setTimeout(r,3000))
+    ]);
+  }
+  // 连续导入/切换主题时，上一轮截图任务可能还在跑：这里用代次判断，一旦状态变了就立刻
+  // 放弃后续屏的截图。否则两轮 html2canvas 同时持有三屏大画布 + 两份 DOM 克隆，
+  // 手机上内存直接翻倍——表现为「导入第二个主题就闪退回默认页」。
+  const gen=shotGen;
   const ss=await screens(),cs=[];
-  for(const el of ss)cs.push(await canvasOf(el,scale||SHOT_SCALE));
+  for(const el of ss){
+    if(gen!==shotGen)throw new Error('截图已取消');
+    cs.push(await canvasOf(el,scale||SHOT_SCALE));
+  }
+  if(gen!==shotGen)throw new Error('截图已取消');
   if(wantHD)screenCache=cs;else screenCacheFast=cs;
   return cs;
 }
@@ -3464,19 +3429,15 @@ async function openPreviewAt(tplId){
   const oldBox=$('#modalImgs');if(oldBox)oldBox.innerHTML='';
   showPages([{name:'正在截图…'}],0);
   try{
-    // 优先从磁盘恢复上次会话的截图（主屏幕页面被系统重载后内存缓存已丢）：
-    // 恢复 0.1~0.3 秒，比重新截图快一个数量级；恢复失败才真正截图。
-    let fast=screenCacheFast;
-    if(!fast){
-      const restored=await restoreShots();
-      if(restored)screenCacheFast=restored;
-      fast=screenCacheFast;
-    }
-    if(!fast)fast=await screenCanvases(SHOT_SCALE_FAST);
-    await ensureFontsReady(1500);   // 磁盘恢复的截图不依赖字体，但海报叠加文字需要（已就绪时零开销）
+    // 内存里有快速截图就直接用；没有才真正截图（比高清快 3~5 倍）。
+    let fast=screenCacheFast||await screenCanvases(SHOT_SCALE_FAST);
+    await ensureFontsReady(1500);   // 海报文字是 canvas 叠加的，字体没解码会回退成默认字体
     showPages(posterPages(fast,S.themes[S.active]),idx);
     if(!screenCache)screenCanvases().catch(()=>{});
-  }catch(err){closeModal();alert('预览失败：'+err.message)}
+  }catch(err){
+    if(/取消/.test(err.message)){closeModal();return}   // 用户又导入了别的主题：静默放弃
+    closeModal();alert('预览失败：'+err.message)
+  }
 }
 // 卡片点击：直接选中并打开该模板的大预览
 $('#tplSeg').addEventListener('click',e=>{
@@ -3537,12 +3498,13 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='Escape')closeModal();
 });
 function closeModal(){pvSeq++;window.PV=null;revokePvUrls();if(typeof closeRawView==='function')closeRawView();$('#modal').style.display='none';unlockPageScroll();
-  // 自动清理内存缓存：手机上三屏截图缓存 + 原图 canvas 常驻百 MB 级，是 WebView
-  // 内存超限崩溃（跳代码页）的主因。关闭大预览后延时释放；桌面内存充裕保留缓存秒开。
-  // 下次打开/导出时若缓存已清，会自动重新截图（弹窗先出「生成中」反馈，不假死）。
+  // 自动清理内存：手机上「高清截图 + 原图 canvas」常驻上百 MB，是 WebView 内存超限崩溃
+  // （跳代码页）的主因。关闭大预览后延时释放高清那部分；快速截图（尺寸小、几十 MB）
+  // 保留在内存里，这样紧接着换模板不用重新截图——「每个模板都要重新加载」就解决了。
+  // 切后台/重新导入时仍会整体释放（见 visibilitychange 与 renderAll）。
   setTimeout(()=>{
     if(window.PV)return;                       // 弹窗又被打开：不清理
-    if(IS_MOBILE){clearScreenCache();pvFullCanvas={};pvFullOrder=[]}
+    if(IS_MOBILE){screenCache=null;pvFullCanvas={};pvFullOrder=[]}
   },1500);
 }
 // 切后台（visibilitychange hidden）时同样自动清理：iOS/安卓 WebView 对后台页面
@@ -3662,7 +3624,9 @@ function restoreFontSel(){
   }catch(e){}
 }
 restoreFontSel();
-if(S.fontTheme==='huiwen'||S.fontAuthor==='huiwen'||S.fontBody==='huiwen'||S.cnFont==='huiwen')ensureHuiwenFont().catch(()=>{});
+// 不在页面一打开就预加载汇文：3.4MB 字体解码会和「导入主题、解码十几张图片」叠在一起，
+// 手机内存峰值过高会直接闪退。改为导入后由后台预热截图（screenCanvases）按需触发，
+// 时机更晚、更平缓，字体照样在打开模板前就绪。
 
 </script>
 <script>/*!
