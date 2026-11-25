@@ -1474,8 +1474,9 @@ async function canvasOf(el,scale){
 }
 // 三屏截图一次生成、全局缓存：大预览 / 导出三张 / 导出海报 / 缩略图全部复用同一份 canvas，
 // 从根本上保证「导出的样子 = 大预览看到的」。任何影响画面的操作（导入、刷新、改标题/作者、切模式）都会清缓存。
-let screenCache=null;
-function clearScreenCache(){screenCache=null}
+let screenCache=null;        // 高清截图（导出原图/缩略图用，scale=SHOT_SCALE）
+let screenCacheFast=null;    // 快速截图（打开预览时先出图用，scale=SHOT_SCALE_FAST）
+function clearScreenCache(){screenCache=null;screenCacheFast=null}
 function toBlob(c){return new Promise((res,rej)=>{try{c.toBlob(b=>b?res(b):rej(Error('toBlob 失败')),'image/png')}catch(e){rej(e)}})}
 // 导入/切换后后台预截图：html2canvas 截三屏在手机上要 1~2 秒，是「点开模板要加载一会」的主因。
 // 在浏览器空闲时提前截图并缓存，用户点模板/导图时直接命中，秒开。清缓存后会自动重新预热。
@@ -1646,6 +1647,9 @@ function layoutScreens(W,H,cs,topZone,botZone,gapOverride){
 const POSTER_W=4800;
 const IS_MOBILE=(()=>{try{return matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)}catch(e){return false}})();
 const SHOT_SCALE=IS_MOBILE?5:6;
+// 预览用快速倍率：手机截图是最大瓶颈（三屏 scale5 约 10~18 秒）。先用 3.2 倍秒出预览，
+// 后台再补高清供导出原图使用——导出清晰度完全不受影响。
+const SHOT_SCALE_FAST=IS_MOBILE?3.2:4;
 function makePoster(cs,t,tpl,raw,author,W){
   // W 可选：预览传小值（如1600）直接小画布绘制，原图不传用 POSTER_W=4800。
   // 所有绘制均按 W 比例参数化，故小画布外观与大画布一致，但绘制开销大幅降低。
@@ -3001,8 +3005,10 @@ async function screens(){return [...document.querySelectorAll('#stage .screen')]
 // 截图一次后缓存；大预览/导出/缩略图共用，杜绝两次截图产生的差异。
 // 桌面 scale=6 高清、移动端 scale=4（手机屏幕无需更高，且 html2canvas 高 scale 很慢）。
 let fontsWereReadyAtShot=true;   // 最近一次截图时字体是否已全部解码
-async function screenCanvases(){
-  if(screenCache)return screenCache;
+async function screenCanvases(scale){
+  const wantHD=!scale||scale===SHOT_SCALE;
+  if(wantHD&&screenCache)return screenCache;
+  if(!wantHD&&screenCacheFast)return screenCacheFast;
   // 关键：内嵌/远程 @font-face 是「用到才解码」。截图前先触发解码，保证海报字体正确。
   // 但网页部署版字体要走网络下载（GitHub Pages 上汇文 3.4MB 可能要几十秒），
   // 无限等待会让「生成中」卡住很久 → 最多等 6 秒：超时先用回退字体出图，
@@ -3016,8 +3022,8 @@ async function screenCanvases(){
   }
   fontsWereReadyAtShot=[...document.fonts].every(f=>f.status!=='unloaded'&&f.status!=='loading');
   const ss=await screens(),cs=[];
-  for(const el of ss)cs.push(await canvasOf(el,SHOT_SCALE));
-  screenCache=cs;
+  for(const el of ss)cs.push(await canvasOf(el,scale||SHOT_SCALE));
+  if(wantHD)screenCache=cs;else screenCacheFast=cs;
   return cs;
 }
 function posterText(t){
@@ -3033,7 +3039,11 @@ function posterPages(cs,t){
   // gen=预览（直接小画布绘制，快）；genFull=完整4800原图（点打开原图/下载时才用）
   return TPLS.map(m=>({name:m.name,
     gen:()=>makePoster(shots,t,m.id,raw,author,PV_PREVIEW_W),
-    genFull:()=>makePoster(shots,t,m.id,raw,author)}));
+    genFull:async()=>{
+      // 导出原图必须用高清截图：大预览可能是 SHOT_SCALE_FAST 的快速版
+      const hd=await screenCanvases();
+      return makePoster(posterShots(hd,t),t,m.id,raw,author);
+    }}));
 }
 // 原图独立成页（启动/书架/阅读）；无启动页主题只保留书架+阅读两张
 function singlePages(cs,t){
@@ -3131,12 +3141,12 @@ function cacheFullCanvas(idx,c){
   }
   pvFullCanvas[idx]=c;
 }
-function fullPvCanvas(idx){
+async function fullPvCanvas(idx){
   if(pvFullCanvas[idx])return pvFullCanvas[idx];
   const PV=window.PV;if(!PV)return null;
   const p=PV.pages[idx];
   try{
-    const raw=p.genFull?p.genFull():p.canvases[0];
+    const raw=p.genFull?await p.genFull():p.canvases[0];
     cacheFullCanvas(idx,sharpenCanvas(raw));      // 原图才锐化，观感更清晰
     return pvFullCanvas[idx];
   }catch(e){console.warn('原图生成失败',e);return null}
@@ -3145,8 +3155,8 @@ function fullPvCanvas(idx){
 // 且 data URL 会把 ~19MB base64 常驻内存致移动端崩溃。原图一律走 fullPvBlob → blob URL，
 // 保存走 navigator.share(File) 或 a.download(blobURL)，既不跳页也保持完整分辨率。
 // 完整原图 Blob：从 canvas 直接编码，不经过 data URL（Promise，异步不卡主线程）
-function fullPvBlob(idx){
-  const c=fullPvCanvas(idx);
+async function fullPvBlob(idx){
+  const c=await fullPvCanvas(idx);
   return new Promise((res,rej)=>{if(!c){rej(Error('原图尚未就绪'));return}c.toBlob(b=>b?res(b):rej(Error('PNG 编码失败')),'image/png')});
 }
 function ensurePvImage(idx){genPvImage(idx)}
@@ -3309,10 +3319,13 @@ async function openPreviewAt(tplId){
   // 无缓存（刚清缓存/预热未完成）：先弹窗给「生成中」反馈再截图。
   // 移动端 html2canvas 三屏要 1~2 秒，之前是先截图后弹窗——期间界面假死，
   // 用户重复点击会叠加多次截图任务，内存峰值翻倍，是移动端崩溃跳代码页的诱因之一。
-  showPages([{name:'生成中…'}],0);
+  showPages([{name:'正在截图…'}],0);
   try{
-    const cs=await screenCanvases();
-    showPages(posterPages(cs,S.themes[S.active]),idx);
+    // 先用快速倍率截图 → 3~8 秒出预览（手机三屏高清要 10~18 秒，等不起）；
+    // 同时后台补高清截图，供「下载原图」与下次打开使用，导出清晰度不受影响。
+    const fast=screenCacheFast||await screenCanvases(SHOT_SCALE_FAST);
+    showPages(posterPages(fast,S.themes[S.active]),idx);
+    if(!screenCache)screenCanvases().catch(()=>{});
   }catch(err){closeModal();alert('预览失败：'+err.message)}
 }
 // 卡片点击：直接选中并打开该模板的大预览
@@ -3379,14 +3392,14 @@ function closeModal(){pvSeq++;window.PV=null;revokePvUrls();if(typeof closeRawVi
   // 下次打开/导出时若缓存已清，会自动重新截图（弹窗先出「生成中」反馈，不假死）。
   setTimeout(()=>{
     if(window.PV)return;                       // 弹窗又被打开：不清理
-    if(IS_MOBILE){screenCache=null;pvFullCanvas={};pvFullOrder=[]}
+    if(IS_MOBILE){clearScreenCache();pvFullCanvas={};pvFullOrder=[]}
   },1500);
 }
 // 切后台（visibilitychange hidden）时同样自动清理：iOS/安卓 WebView 对后台页面
 // 内存更苛刻，先释放再回前台重新截图，避免「切出去再回来页面已被杀」。
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden&&IS_MOBILE){
-    screenCache=null;pvFullCanvas={};pvFullOrder=[];
+    clearScreenCache();pvFullCanvas={};pvFullOrder=[];
   }
 });
 // 把完整原图 blob 存为原文件：手机优先系统分享（存原字节、不压缩、绝不跳代码页），桌面用 a.download

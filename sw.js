@@ -23,17 +23,18 @@ self.addEventListener('fetch', e => {
   if (req.mode === 'navigate') {
     e.respondWith((async () => {
       const cache = await caches.open(HTML_CACHE);
-      try {
-        const net = await Promise.race([
-          fetch(req),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 2000))
-        ]);
-        if (net && net.ok) cache.put(req, net.clone());
-        return net;
-      } catch (err) {
-        const hit = (await cache.match(req)) || (await cache.match(new URL('scan.html', self.registration.scope).href));
-        return hit || Response.error();
+      const hit = (await cache.match(req)) || (await cache.match(new URL('scan.html', self.registration.scope).href));
+      // 网络请求始终启动并写入缓存（即使本次超时先返回缓存，下载完成后也会更新缓存，
+      // 避免「慢网用户永远拿到旧版」）。
+      const netP = fetch(req).then(r => { if (r && r.ok) cache.put(req, r.clone()); return r; }).catch(() => null);
+      if (hit) {
+        const net = await Promise.race([netP, new Promise(r => setTimeout(() => r(null), 2000))]);
+        if (net && net.ok) return net;        // 2 秒内拿到新版：直接显示最新
+        e.waitUntil(netP);                    // 超时：先显示缓存，后台继续下载并更新缓存
+        return hit;
       }
+      const net = await netP;
+      return net || Response.error();
     })());
     return;
   }
