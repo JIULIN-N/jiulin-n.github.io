@@ -293,7 +293,7 @@ button{font-family:inherit;cursor:pointer;border:0;color:inherit}
 @media(max-width:980px){.side{position:static;top:auto}}
 /* 窄屏顶栏：标题/副标题与两个导出按钮各自占行，禁止内部文字换行导致挤压错位 */
 @media(max-width:720px){
-  .app{padding:16px 14px 44px}
+  .app{padding:calc(16px + max(env(safe-area-inset-top), 24px)) 14px calc(44px + max(env(safe-area-inset-bottom), 12px))}
   .topbar{flex-wrap:wrap;gap:10px 12px}
   .brand{flex:1 1 100%}
   .brand h1{font-size:17px}
